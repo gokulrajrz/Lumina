@@ -1,0 +1,161 @@
+{
+  "identity": "E1: The Anti-AI Designer",
+  "platform": "React Native Expo",
+  "theme_mode": "dark",
+  "design_philosophy": {
+    "core_principles": [
+      "Fusion over Imitation: Mix Ancient Manuscripts with Sci-Fi Dashboards.",
+      "Emotion First: Every screen must feel like a secret being revealed.",
+      "Deep Focus: Use 'Cinematic Black' (#0F0F1A) to make data pop.",
+      "Asymmetry: Avoid centering everything. Use staggered layouts for tension.",
+      "Tactile Depth: Use subtle borders and shadows to create layers in a flat world."
+    ],
+    "anti_patterns": [
+      "No 'SaaS Blue' or generic purples. Use deep, rich Nebula Violet.",
+      "No tiny touch targets. Minimum 44px hit area.",
+      "No generic 'Inter' for headings. Use Serif styles for mystical authority.",
+      "No HTML/CSS. Strictly React Native StyleSheet."
+    ]
+  },
+  "colors": {
+    "background": {
+      "main": "#0F0F1A",
+      "surface": "#1A1A2E",
+      "surface_highlight": "#252540",
+      "overlay": "rgba(15, 15, 26, 0.85)"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#A0A0B0",
+      "tertiary": "#6E6E80",
+      "accent": "#FFD93D"
+    },
+    "brand": {
+      "primary": "#6C5CE7",
+      "primary_glow": "rgba(108, 92, 231, 0.5)",
+      "accent": "#FFD93D",
+      "accent_glow": "rgba(255, 217, 61, 0.3)",
+      "success": "#00E676",
+      "error": "#FF5252"
+    },
+    "gradients": {
+      "mystic": ["#6C5CE7", "#FFD93D"],
+      "void": ["#0F0F1A", "#1A1A2E"]
+    }
+  },
+  "typography": {
+    "font_family": {
+      "heading": "System Serif", 
+      "body": "System Sans-Serif"
+    },
+    "scale": {
+      "h1": { "fontSize": 32, "fontWeight": "700", "lineHeight": 40, "letterSpacing": 0.5 },
+      "h2": { "fontSize": 24, "fontWeight": "600", "lineHeight": 32, "letterSpacing": 0.25 },
+      "h3": { "fontSize": 20, "fontWeight": "600", "lineHeight": 28 },
+      "body_large": { "fontSize": 18, "fontWeight": "400", "lineHeight": 26 },
+      "body": { "fontSize": 16, "fontWeight": "400", "lineHeight": 24 },
+      "caption": { "fontSize": 14, "fontWeight": "500", "lineHeight": 20, "letterSpacing": 0.5 }
+    }
+  },
+  "layout_spacing": {
+    "spacing_scale": {
+      "xs": 4,
+      "s": 8,
+      "m": 16,
+      "l": 24,
+      "xl": 32,
+      "xxl": 48
+    },
+    "border_radius": {
+      "s": 8,
+      "m": 16,
+      "l": 24,
+      "full": 9999
+    },
+    "safe_area": "Ensure all content is within SafeAreaView bounds."
+  },
+  "components": {
+    "buttons": {
+      "primary": {
+        "backgroundColor": "#6C5CE7",
+        "borderRadius": 24,
+        "paddingVertical": 16,
+        "paddingHorizontal": 32,
+        "shadowColor": "#6C5CE7",
+        "shadowOffset": { "width": 0, "height": 4 },
+        "shadowOpacity": 0.3,
+        "shadowRadius": 8,
+        "elevation": 5
+      },
+      "secondary": {
+        "backgroundColor": "transparent",
+        "borderWidth": 1,
+        "borderColor": "rgba(255, 255, 255, 0.2)",
+        "borderRadius": 24,
+        "paddingVertical": 14
+      }
+    },
+    "cards": {
+      "base": {
+        "backgroundColor": "#1A1A2E",
+        "borderRadius": 24,
+        "padding": 20,
+        "borderWidth": 1,
+        "borderColor": "rgba(255, 255, 255, 0.05)",
+        "marginBottom": 16
+      },
+      "glass": {
+        "backgroundColor": "rgba(26, 26, 46, 0.7)",
+        "borderRadius": 24,
+        "borderWidth": 1,
+        "borderColor": "rgba(255, 255, 255, 0.1)"
+      }
+    },
+    "inputs": {
+      "base": {
+        "backgroundColor": "rgba(255, 255, 255, 0.05)",
+        "borderRadius": 12,
+        "padding": 16,
+        "color": "#FFFFFF",
+        "fontSize": 16,
+        "borderWidth": 1,
+        "borderColor": "rgba(255, 255, 255, 0.1)"
+      }
+    }
+  },
+  "assets": {
+    "icons": {
+      "library": "@expo/vector-icons",
+      "preferred_set": "Ionicons",
+      "style": "Use thin strokes (outline) for elegance, filled for active states."
+    },
+    "images": {
+      "background_nebula": "https://images.unsplash.com/photo-1754851539824-5a87c5c7cb86?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "background_stars": "https://images.unsplash.com/photo-1710270822096-ccfa274be004?crop=entropy&cs=srgb&fm=jpg&q=85",
+      "background_abstract": "https://images.unsplash.com/photo-1581840130788-0c20b3d547c0?crop=entropy&cs=srgb&fm=jpg&q=85"
+    }
+  },
+  "motion": {
+    "default_transition": "LayoutAnimation.easeInEaseOut()",
+    "touch_feedback": "Use TouchableOpacity with activeOpacity={0.7} for all interactive elements.",
+    "loading": "Use refined pulsing opacity or thin rotating borders, not heavy spinners."
+  },
+  "implementation_rules": {
+    "react_native_strict": [
+      "DO NOT use HTML tags (div, span, h1). Use View, Text, Image, ScrollView.",
+      "DO NOT use className or Tailwind strings. Use StyleSheet.create({ styleName: { ... } }).",
+      "Use SafeAreaView from 'react-native-safe-area-context' for screen wrappers.",
+      "Use KeyboardAvoidingView for forms.",
+      "Images must have explicit width/height or flex: 1."
+    ],
+    "accessibility": [
+      "All touchables must have minHeight: 44, minWidth: 44.",
+      "Text must have adequate contrast against dark backgrounds (avoid dark grey on black).",
+      "Use accessibilityLabel on icon-only buttons."
+    ],
+    "testing": [
+      "Add testID='element-name' to all key interactive elements."
+    ]
+  },
+  "instructions_to_main_agent": "You are building a React Native Expo app. Follow these guidelines strictly. The design is 'Cosmic Luxury'. Think high-end watch face meets NASA dashboard. Dark, mysterious, but incredibly clear data. Use the provided image URLs for background textures to give depth. Avoid flat colors where possible—use subtle gradients or overlays."
+}
