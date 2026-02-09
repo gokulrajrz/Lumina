@@ -11,9 +11,9 @@ from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, timezone
 import swisseph as swe
-from emergentintegrations.llm.chat import LlmChat, UserMessage
 import json
 import asyncio
+import google.generativeai as genai
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -25,6 +25,8 @@ db = client[os.environ['DB_NAME']]
 
 # Gemini API key
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -298,21 +300,22 @@ def calculate_current_transits(birth_chart: dict) -> dict:
 
 # ── AI Service ──
 async def generate_ai_response(system_msg: str, user_msg: str, session_id: str = None) -> str:
-    """Generate AI response using Gemini 3 Pro via emergentintegrations."""
+    """Generate AI response using Google Gemini API."""
     try:
-        if not session_id:
-            session_id = str(uuid.uuid4())
-
-        chat = LlmChat(
-            api_key=GEMINI_API_KEY,
-            session_id=session_id,
-            system_message=system_msg
+        if not GEMINI_API_KEY:
+            raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
+        
+        model = genai.GenerativeModel(
+            model_name='gemini-1.5-pro',
+            system_instruction=system_msg
         )
-        chat.with_model("gemini", "gemini-3-pro-preview")
-
-        message = UserMessage(text=user_msg)
-        response = await chat.send_message(message)
-        return response
+        
+        response = await asyncio.to_thread(
+            model.generate_content,
+            user_msg
+        )
+        
+        return response.text
     except Exception as e:
         logger.error(f"AI generation error: {e}")
         raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)}")
