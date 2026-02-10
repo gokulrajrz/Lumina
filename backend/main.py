@@ -31,7 +31,40 @@ logging.basicConfig(
 logger = logging.getLogger("lumina")
 
 
+from contextlib import asynccontextmanager
+
 # ── App Factory ──
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    settings = get_settings()
+    logger.info(f"Lumina API v2.0.0 starting up")
+    logger.info(f"CORS origins: {settings.get_cors_origins()}")
+    logger.info(f"Rate limit (AI): {settings.rate_limit_ai}")
+    if settings.debug:
+        logger.info("Debug mode: True")
+
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            # Doesn't even have to be reachable
+            s.connect(('8.8.8.8', 1))
+            local_ip = s.getsockname()[0]
+        except Exception:
+            local_ip = '127.0.0.1'
+        finally:
+            s.close()
+        logger.info(f"Network URL: http://{local_ip}:8001")
+    except Exception:
+        logger.warning("Could not determine local network IP")
+    
+    yield
+    
+    # Shutdown logic (if any) goes here
+    logger.info("Lumina API shutting down")
+
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
@@ -43,6 +76,7 @@ def create_app() -> FastAPI:
         version="2.0.0",
         docs_url="/docs" if settings.debug else None,
         redoc_url="/redoc" if settings.debug else None,
+        lifespan=lifespan,
     )
 
     # ── Middleware ──
@@ -71,13 +105,6 @@ def create_app() -> FastAPI:
     app.include_router(briefing.router)
     app.include_router(journal.router)
     app.include_router(chat.router)
-
-    @app.on_event("startup")
-    async def startup():
-        logger.info(f"Lumina API v2.0.0 starting up")
-        logger.info(f"CORS origins: {settings.get_cors_origins()}")
-        logger.info(f"Rate limit (AI): {settings.rate_limit_ai}")
-        logger.info(f"Debug mode: {settings.debug}")
 
     return app
 
