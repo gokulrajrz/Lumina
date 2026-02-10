@@ -34,6 +34,8 @@ dist
 .env
 .env.*
 !.env.example
+frontend/.env
+backend/.env
 *token.json*
 *credentials.json*
 

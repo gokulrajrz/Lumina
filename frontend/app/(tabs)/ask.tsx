@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Keyboard,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -130,6 +131,7 @@ export default function AskScreen() {
             keyExtractor={(item, index) => item.message_id || `msg-${index}`}
             contentContainerStyle={styles.messageList}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd}
+            keyboardDismissMode="on-drag"
           />
         )}
 
@@ -142,6 +144,12 @@ export default function AskScreen() {
 
         {/* Input */}
         <GlassView style={styles.inputContainer} intensity={30} tint="dark">
+          <TouchableOpacity
+            onPress={Keyboard.dismiss}
+            style={styles.dismissButton}
+          >
+            <Ionicons name="chevron-down" size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
           <TextInput
             style={styles.input}
             placeholder="Ask the cosmos..."
@@ -150,8 +158,6 @@ export default function AskScreen() {
             onChangeText={setInput}
             multiline
             maxLength={2000}
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
             blurOnSubmit={false}
           />
           <TouchableOpacity
@@ -272,6 +278,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     padding: spacing.md,
     paddingBottom: spacing.xl, // Extra padding for tab bar bottom
+    marginBottom: 85, // Lift above absolute tab bar
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.1)',
   },
@@ -285,6 +292,10 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     maxHeight: 120,
     marginRight: spacing.sm,
+  },
+  dismissButton: {
+    padding: spacing.sm,
+    marginRight: spacing.xs,
   },
   sendButton: {
     paddingBottom: 4,

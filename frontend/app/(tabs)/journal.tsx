@@ -9,6 +9,8 @@ import {
   Alert,
   TextInput,
   Modal,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -154,31 +156,38 @@ export default function JournalScreen() {
         )}
 
         <Modal visible={writing} animationType="slide" transparent>
-          <GlassView style={styles.modalContainer} intensity={90} tint="dark">
-            <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setWriting(false)}>
-                <Text style={styles.modalCancel}>Cancel</Text>
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>New Entry</Text>
-              <TouchableOpacity
-                onPress={handleCreateEntry}
-                disabled={submitting}
-              >
-                <Text style={[styles.modalSave, submitting && styles.disabledText]}>
-                  {submitting ? 'Saving...' : 'Save'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <TextInput
-              style={styles.input}
-              multiline
-              placeholder="What's on your mind?..."
-              placeholderTextColor={colors.textTertiary}
-              value={newEntryText}
-              onChangeText={setNewEntryText}
-              autoFocus
-            />
-          </GlassView>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <GlassView style={styles.modalContainer} intensity={90} tint="dark">
+              <View style={styles.modalHeader}>
+                <TouchableOpacity onPress={() => setWriting(false)}>
+                  <Text style={styles.modalCancel}>Cancel</Text>
+                </TouchableOpacity>
+                <View style={styles.titleContainer}>
+                  <Text style={styles.modalTitle}>New Entry</Text>
+                  <TouchableOpacity onPress={Keyboard.dismiss} style={styles.headerDismiss}>
+                    <Ionicons name="chevron-down-circle-outline" size={20} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity
+                  onPress={handleCreateEntry}
+                  disabled={submitting}
+                >
+                  <Text style={[styles.modalSave, submitting && styles.disabledText]}>
+                    {submitting ? 'Saving...' : 'Save'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <TextInput
+                style={styles.input}
+                multiline
+                placeholder="What's on your mind?..."
+                placeholderTextColor={colors.textTertiary}
+                value={newEntryText}
+                onChangeText={setNewEntryText}
+                autoFocus
+              />
+            </GlassView>
+          </TouchableWithoutFeedback>
         </Modal>
       </View>
     </GradientBackground>
@@ -217,7 +226,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: spacing.lg,
-    paddingBottom: 100,
+    paddingBottom: 130, // Clearance for tab bar
   },
   entryCard: {
     marginBottom: spacing.md,
@@ -312,5 +321,13 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.lg,
     color: colors.textPrimary,
     textAlignVertical: 'top',
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerDismiss: {
+    padding: 4,
   },
 });

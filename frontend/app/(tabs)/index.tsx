@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.lg,
     paddingTop: spacing.xxl + spacing.lg,
-    paddingBottom: spacing.xxl * 2, // Extra padding for tab bar
+    paddingBottom: spacing.xxl * 3, // Safe clearance for tab bar
   },
   header: {
     flexDirection: 'row',
