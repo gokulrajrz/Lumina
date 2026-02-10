@@ -10,10 +10,7 @@ export const colors = {
   primaryDark: '#E0E0E0',
   primaryLight: '#FFFFFF',
 
-  // Grayscale accents
-  primaryGradient: ['#FFFFFF', '#E0E0E0'],
-  secondaryGradient: ['#242424', '#1A1A1A'],
-  accentGradient: ['#333333', '#2A2A2A'],
+
 
   accent: '#FFFFFF',
 
@@ -36,8 +33,6 @@ export const colors = {
 
   // Borders & Shadows (minimal for matte)
   border: '#2A2A2A',
-  glassBorder: '#2A2A2A',
-  glassShadow: '#000000',
 };
 
 export const spacing = {

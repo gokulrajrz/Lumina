@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     padding: spacing.md,
     paddingBottom: spacing.xl,
-    marginBottom: 85,
+    marginBottom: 100,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.background,

@@ -379,6 +379,7 @@ const styles = StyleSheet.create({
   },
   briefingContainer: {
     gap: spacing.sm,
+    paddingBottom: 110,
   },
   errorCard: {
     alignItems: 'center',
