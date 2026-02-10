@@ -1,7 +1,3 @@
-/**
- * Ask AI Screen — Chat with Lumina AI with conversation management.
- */
-
 import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
@@ -14,8 +10,10 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
+import { GradientBackground } from '../../components/ui/Layout/GradientBackground';
+import { GlassView } from '../../components/ui/Layout/GlassView';
 import { ChatSkeleton } from '../../components/ui/SkeletonLoader';
 import { useUserStore } from '../../stores/userStore';
 import { useChatStore } from '../../stores/chatStore';
@@ -56,34 +54,43 @@ export default function AskScreen() {
     const isUser = item.role === 'user';
     return (
       <View
-        style={[styles.messageBubble, isUser ? styles.userBubble : styles.aiBubble]}
-        accessibilityLabel={`${isUser ? 'You' : 'Lumina'} said: ${item.content}`}
+        style={[styles.messageRow, isUser ? styles.userRow : styles.aiRow]}
       >
         {!isUser && (
-          <Text style={styles.aiLabel}>✨ Lumina</Text>
+          <View style={styles.aiAvatar}>
+            <Ionicons name="sparkles" size={16} color="#FFF" />
+          </View>
         )}
-        <Text style={[styles.messageText, isUser && styles.userMessageText]}>
-          {item.content}
-        </Text>
+        <GlassView
+          intensity={isUser ? 0 : 20}
+          tint="dark"
+          style={[styles.messageBubble, isUser ? styles.userBubble : styles.aiBubble]}
+        >
+          {!isUser && (
+            <Text style={styles.aiLabel}>Lumina</Text>
+          )}
+          <Text style={[styles.messageText, isUser && styles.userMessageText]}>
+            {item.content}
+          </Text>
+        </GlassView>
       </View>
     );
   };
 
   return (
-    <ErrorBoundary>
+    <GradientBackground>
+      <StatusBar style="light" />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={90}
+        keyboardVerticalOffset={0}
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title} accessibilityRole="header">Ask Lumina</Text>
+          <Text style={styles.title}>Ask Lumina</Text>
           <TouchableOpacity
             onPress={handleNewChat}
             style={styles.newChatButton}
-            accessibilityLabel="Start a new conversation"
-            accessibilityRole="button"
           >
             <Ionicons name="create-outline" size={22} color={colors.primary} />
             <Text style={styles.newChatText}>New</Text>
@@ -106,11 +113,11 @@ export default function AskScreen() {
               ].map((suggestion, i) => (
                 <TouchableOpacity
                   key={i}
-                  style={styles.suggestionChip}
                   onPress={() => setInput(suggestion)}
-                  accessibilityLabel={`Suggestion: ${suggestion}`}
                 >
-                  <Text style={styles.suggestionText}>{suggestion}</Text>
+                  <GlassView style={styles.suggestionChip} intensity={20} tint="dark">
+                    <Text style={styles.suggestionText}>{suggestion}</Text>
+                  </GlassView>
                 </TouchableOpacity>
               ))}
             </View>
@@ -134,7 +141,7 @@ export default function AskScreen() {
         )}
 
         {/* Input */}
-        <View style={styles.inputContainer}>
+        <GlassView style={styles.inputContainer} intensity={30} tint="dark">
           <TextInput
             style={styles.input}
             placeholder="Ask the cosmos..."
@@ -146,7 +153,6 @@ export default function AskScreen() {
             returnKeyType="send"
             onSubmitEditing={handleSend}
             blurOnSubmit={false}
-            accessibilityLabel="Type your message"
           />
           <TouchableOpacity
             onPress={handleSend}
@@ -155,35 +161,32 @@ export default function AskScreen() {
               styles.sendButton,
               (!input.trim() || isLoading) && styles.sendButtonDisabled,
             ]}
-            accessibilityLabel="Send message"
-            accessibilityRole="button"
           >
             <Ionicons
               name="arrow-up-circle"
-              size={36}
+              size={40}
               color={input.trim() && !isLoading ? colors.primary : colors.textTertiary}
             />
           </TouchableOpacity>
-        </View>
+        </GlassView>
       </KeyboardAvoidingView>
-    </ErrorBoundary>
+    </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xxl + spacing.lg,
+    paddingTop: spacing.xxl * 1.5,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceHover,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   title: {
     fontSize: typography.fontSize.xl,
@@ -196,6 +199,8 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16,
   },
   newChatText: {
     fontSize: typography.fontSize.sm,
@@ -206,26 +211,43 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing.md,
   },
-  messageBubble: {
-    maxWidth: '85%',
+  messageRow: {
+    flexDirection: 'row',
+    marginBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  userRow: {
+    justifyContent: 'flex-end',
+  },
+  aiRow: {
+    justifyContent: 'flex-start',
+  },
+  aiAvatar: {
+    width: 32,
+    height: 32,
     borderRadius: 16,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  messageBubble: {
+    maxWidth: '80%',
     padding: spacing.md,
-    marginBottom: spacing.sm,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   userBubble: {
-    alignSelf: 'flex-end',
     backgroundColor: colors.primary,
     borderBottomRightRadius: 4,
   },
   aiBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surface,
     borderBottomLeftRadius: 4,
   },
   aiLabel: {
     fontSize: typography.fontSize.xs,
     color: colors.primary,
-    fontWeight: typography.fontWeight.semibold,
+    fontWeight: typography.fontWeight.bold,
     marginBottom: 4,
   },
   messageText: {
@@ -248,25 +270,24 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    padding: spacing.md,
+    paddingBottom: spacing.xl, // Extra padding for tab bar bottom
     borderTopWidth: 1,
-    borderTopColor: colors.surfaceHover,
-    backgroundColor: colors.background,
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   input: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 24,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md, // More comfortable padding
     fontSize: typography.fontSize.base,
     color: colors.textPrimary,
     maxHeight: 120,
     marginRight: spacing.sm,
   },
   sendButton: {
-    paddingBottom: 2,
+    paddingBottom: 4,
   },
   sendButtonDisabled: {
     opacity: 0.5,
@@ -299,14 +320,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   suggestionChip: {
-    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.surfaceHover,
+    overflow: 'hidden',
   },
   suggestionText: {
     fontSize: typography.fontSize.sm,
     color: colors.textPrimary,
+    textAlign: 'center',
   },
 });

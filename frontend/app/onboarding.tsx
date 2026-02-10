@@ -9,14 +9,18 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { GradientBackground } from '../components/ui/Layout/GradientBackground';
+import { GlassView } from '../components/ui/Layout/GlassView';
 import { useUserStore } from '../stores/userStore';
 import { api } from '../services/api';
 import { supabase } from '../services/supabase';
 import { colors, spacing, typography } from '../constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function Onboarding() {
   const router = useRouter();
@@ -186,131 +190,165 @@ export default function Onboarding() {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Text style={styles.title} accessibilityRole="header">
-        ✨ Welcome to Lumina
-      </Text>
-      <Text style={styles.subtitle}>
-        Your cosmic self-discovery journey begins
-      </Text>
+    <GradientBackground>
+      <StatusBar style="light" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <Text style={styles.title} accessibilityRole="header">
+              ✨ Welcome to Lumina
+            </Text>
+            <Text style={styles.subtitle}>
+              Your cosmic self-discovery journey begins
+            </Text>
+          </View>
 
-      {/* Step indicator */}
-      <View style={styles.stepIndicator}>
-        <View style={[styles.stepDot, step >= 1 && styles.stepDotActive]} />
-        <View style={styles.stepLine} />
-        <View style={[styles.stepDot, step >= 2 && styles.stepDotActive]} />
-      </View>
+          {/* Step indicator */}
+          <View style={styles.stepIndicator}>
+            <View style={[styles.stepDot, step >= 1 && styles.stepDotActive]} />
+            <View style={styles.stepLine} />
+            <View style={[styles.stepDot, step >= 2 && styles.stepDotActive]} />
+          </View>
 
-      {step === 1 && (
-        <View style={styles.form}>
-          <Text style={styles.stepTitle}>Create Account</Text>
-          <Input
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="your@email.com"
-            keyboardType="email-address"
-          />
-          <Input
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-            secureTextEntry
-          />
-          <Button
-            title="Continue"
-            onPress={handleSignUp}
-            loading={loading}
-            fullWidth
-          />
-        </View>
-      )}
+          <GlassView style={styles.formContainer} intensity={20}>
+            {step === 1 && (
+              <View style={styles.form}>
+                <Text style={styles.stepTitle}>Create Account</Text>
+                <Input
+                  label="Email"
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="your@email.com"
+                  keyboardType="email-address"
+                  icon={<Ionicons name="mail-outline" size={20} color={colors.textSecondary} />}
+                />
+                <Input
+                  label="Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••"
+                  secureTextEntry
+                  icon={<Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />}
+                />
+                <Button
+                  title="Continue"
+                  onPress={handleSignUp}
+                  loading={loading}
+                  fullWidth
+                  style={styles.button}
+                />
+              </View>
+            )}
 
-      {step === 2 && (
-        <View style={styles.form}>
-          <Text style={styles.stepTitle}>Birth Information</Text>
-          <Text style={styles.stepDescription}>
-            This data powers your personalized birth chart and daily cosmic insights.
-          </Text>
-          <Input
-            label="Display Name *"
-            value={displayName}
-            onChangeText={setDisplayName}
-            placeholder="Your name"
-          />
-          <Input
-            label="Birth Date (YYYY-MM-DD) *"
-            value={birthDate}
-            onChangeText={setBirthDate}
-            placeholder="1990-01-15"
-          />
-          <Input
-            label="Birth Time (HH:MM, 24hr) *"
-            value={birthTime}
-            onChangeText={setBirthTime}
-            placeholder="14:30"
-          />
-          <Input
-            label="Birth City *"
-            value={city}
-            onChangeText={setCity}
-            placeholder="New York"
-          />
-          <Input
-            label="Latitude (optional)"
-            value={latitude}
-            onChangeText={setLatitude}
-            placeholder="e.g., 40.7128"
-            keyboardType="numeric"
-          />
-          <Input
-            label="Longitude (optional)"
-            value={longitude}
-            onChangeText={setLongitude}
-            placeholder="e.g., -74.0060"
-            keyboardType="numeric"
-          />
-          <Text style={styles.helperText}>
-            💡 Optional — for a more accurate chart, search "[city name] coordinates" online.
-          </Text>
-          <Button
-            title="Complete Setup"
-            onPress={handleComplete}
-            loading={loading}
-            fullWidth
-          />
-        </View>
-      )}
-    </ScrollView>
+            {step === 2 && (
+              <View style={styles.form}>
+                <Text style={styles.stepTitle}>Birth Information</Text>
+                <Text style={styles.stepDescription}>
+                  This data powers your personalized birth chart and daily cosmic insights.
+                </Text>
+                <Input
+                  label="Display Name *"
+                  value={displayName}
+                  onChangeText={setDisplayName}
+                  placeholder="Your name"
+                  icon={<Ionicons name="person-outline" size={20} color={colors.textSecondary} />}
+                />
+                <Input
+                  label="Birth Date (YYYY-MM-DD) *"
+                  value={birthDate}
+                  onChangeText={setBirthDate}
+                  placeholder="1990-01-15"
+                  icon={<Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />}
+                />
+                <Input
+                  label="Birth Time (HH:MM, 24hr) *"
+                  value={birthTime}
+                  onChangeText={setBirthTime}
+                  placeholder="14:30"
+                  icon={<Ionicons name="time-outline" size={20} color={colors.textSecondary} />}
+                />
+                <Input
+                  label="Birth City *"
+                  value={city}
+                  onChangeText={setCity}
+                  placeholder="New York"
+                  icon={<Ionicons name="location-outline" size={20} color={colors.textSecondary} />}
+                />
+
+                <View style={styles.row}>
+                  <View style={styles.halfInput}>
+                    <Input
+                      label="Lat (opt)"
+                      value={latitude}
+                      onChangeText={setLatitude}
+                      placeholder="40.71"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <View style={styles.halfInput}>
+                    <Input
+                      label="Lon (opt)"
+                      value={longitude}
+                      onChangeText={setLongitude}
+                      placeholder="-74.00"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </View>
+
+                <Text style={styles.helperText}>
+                  💡 Optional coordinates for higher precision.
+                </Text>
+
+                <Button
+                  title="Complete Setup"
+                  onPress={handleComplete}
+                  loading={loading}
+                  fullWidth
+                  style={styles.button}
+                />
+              </View>
+            )}
+          </GlassView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </GradientBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   content: {
     padding: spacing.lg,
-    paddingTop: spacing.xxl * 2,
+    paddingTop: spacing.xxl * 1.5,
     paddingBottom: spacing.xxl,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
   },
   title: {
     fontSize: typography.fontSize.xxxl,
     fontWeight: typography.fontWeight.bold,
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     textAlign: 'center',
+    textShadowColor: 'rgba(108, 92, 231, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
   },
   subtitle: {
     fontSize: typography.fontSize.base,
     color: colors.textSecondary,
-    marginBottom: spacing.lg,
     textAlign: 'center',
   },
   stepIndicator: {
@@ -324,37 +362,57 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: colors.surfaceHover,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   stepDotActive: {
     backgroundColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
   },
   stepLine: {
     width: 40,
     height: 2,
-    backgroundColor: colors.surfaceHover,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  formContainer: {
+    padding: spacing.lg,
+    borderRadius: 24,
   },
   form: {
-    marginTop: spacing.md,
+    width: '100%',
   },
   stepTitle: {
     fontSize: typography.fontSize.xl,
     fontWeight: typography.fontWeight.semibold,
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.lg,
+    textAlign: 'center',
   },
   stepDescription: {
     fontSize: typography.fontSize.sm,
     color: colors.textSecondary,
     marginBottom: spacing.lg,
     lineHeight: 20,
+    textAlign: 'center',
+  },
+  button: {
+    marginTop: spacing.md,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  halfInput: {
+    flex: 1,
   },
   helperText: {
-    fontSize: typography.fontSize.sm,
+    fontSize: typography.fontSize.xs,
     color: colors.textSecondary,
     marginTop: -spacing.sm,
     marginBottom: spacing.md,
     fontStyle: 'italic',
-    lineHeight: 20,
+    textAlign: 'center',
   },
 });

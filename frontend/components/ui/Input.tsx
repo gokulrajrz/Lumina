@@ -1,42 +1,38 @@
 import React from 'react';
-import { TextInput, StyleSheet, View, Text } from 'react-native';
+import { TextInput, StyleSheet, View, Text, TextInputProps, ViewStyle, StyleProp } from 'react-native';
+import { GlassView } from './Layout/GlassView';
 import { colors, typography, spacing } from '../../constants/theme';
 
-interface InputProps {
-  value: string;
-  onChangeText: (text: string) => void;
-  placeholder?: string;
+interface InputProps extends TextInputProps {
   label?: string;
-  multiline?: boolean;
-  numberOfLines?: number;
-  keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
-  secureTextEntry?: boolean;
+  error?: string;
+  icon?: React.ReactNode;
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
 export const Input: React.FC<InputProps> = ({
-  value,
-  onChangeText,
-  placeholder,
   label,
-  multiline = false,
-  numberOfLines = 1,
-  keyboardType = 'default',
-  secureTextEntry = false,
+  error,
+  icon,
+  style,
+  containerStyle,
+  ...props
 }) => {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <TextInput
-        style={[styles.input, multiline && styles.multiline]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textTertiary}
-        multiline={multiline}
-        numberOfLines={numberOfLines}
-        keyboardType={keyboardType}
-        secureTextEntry={secureTextEntry}
-      />
+
+      <GlassView style={styles.inputContainer} intensity={10} tint="dark">
+        {icon && <View style={styles.iconContainer}>{icon}</View>}
+        <TextInput
+          style={[styles.input, icon ? styles.inputWithIcon : undefined, style]}
+          placeholderTextColor={colors.textTertiary}
+          selectionColor={colors.primary}
+          {...props}
+        />
+      </GlassView>
+
+      {error && <Text style={styles.error}>{error}</Text>}
     </View>
   );
 };
@@ -44,24 +40,39 @@ export const Input: React.FC<InputProps> = ({
 const styles = StyleSheet.create({
   container: {
     marginBottom: spacing.md,
+    width: '100%',
   },
   label: {
     fontSize: typography.fontSize.sm,
     color: colors.textSecondary,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
+    marginLeft: spacing.xs,
     fontWeight: typography.fontWeight.medium,
   },
-  input: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.md,
-    fontSize: typography.fontSize.base,
-    color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.surfaceHover,
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 56,
+    paddingHorizontal: spacing.md,
+    borderRadius: 16,
+    overflow: 'hidden', // Ensure glass effect is contained
   },
-  multiline: {
-    minHeight: 100,
-    textAlignVertical: 'top',
+  iconContainer: {
+    marginRight: spacing.sm,
+  },
+  input: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontSize: typography.fontSize.base,
+    height: '100%',
+  },
+  inputWithIcon: {
+    marginLeft: spacing.xs,
+  },
+  error: {
+    color: colors.error,
+    fontSize: typography.fontSize.xs,
+    marginTop: spacing.xs,
+    marginLeft: spacing.xs,
   },
 });

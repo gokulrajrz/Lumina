@@ -41,6 +41,7 @@ export interface JournalEntry {
   content: string;
   mood: 1 | 2 | 3 | 4 | 5;
   tags: string[];
+  ai_insight?: string;
   transits_snapshot: CurrentTransits;
 }
 

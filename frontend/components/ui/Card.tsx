@@ -1,21 +1,21 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
-import { colors, spacing } from '../../constants/theme';
+import { StyleSheet, ViewStyle, StyleProp } from 'react-native';
+import { GlassView } from './Layout/GlassView';
+import { spacing } from '../../constants/theme';
 
 interface CardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const Card: React.FC<CardProps> = ({ children, style }) => {
-  return <View style={[styles.card, style]}>{children}</View>;
+  return <GlassView style={[styles.card, style]} intensity={10} tint="dark">{children}</GlassView>;
 };
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
     padding: spacing.lg,
     marginBottom: spacing.md,
+    borderRadius: 24, // Smoother corners for modern look
   },
 });

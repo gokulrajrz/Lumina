@@ -1,362 +1,322 @@
-/**
- * Birth Chart Screen — Displays astrological chart details with accessibility.
- */
-
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  Alert,
+} from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { Card } from '../../components/ui/Card';
-import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
+import { GradientBackground } from '../../components/ui/Layout/GradientBackground';
+import { BriefingSkeleton } from '../../components/ui/SkeletonLoader';
 import { useUserStore } from '../../stores/userStore';
+import { api } from '../../services/api';
 import { colors, spacing, typography } from '../../constants/theme';
+import { BirthChart } from '../../types';
 import { ZODIAC_SYMBOLS, PLANET_SYMBOLS, ELEMENTS, QUALITIES } from '../../constants/zodiac';
 
 export default function ChartScreen() {
-  const { profile } = useUserStore();
-  const birthChart = profile?.birth_chart;
-  const planets = birthChart?.planets || {};
+  const { profile, setProfile } = useUserStore();
+  const [chart, setChart] = useState<BirthChart | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const sunSign = planets?.Sun?.sign || 'Unknown';
-  const moonSign = planets?.Moon?.sign || 'Unknown';
-  const ascSign = birthChart?.ascendant?.sign || 'Unknown';
+  const fetchChart = useCallback(async () => {
+    if (!profile?.user_id) return;
+    try {
+      const user = await api.getUser(profile.user_id);
+      setProfile(user);
+      if (user.birth_chart) {
+        setChart(user.birth_chart);
+      }
+    } catch (error) {
+      console.error('Failed to fetch chart:', error);
+      Alert.alert('Error', 'Could not load birth chart.');
+    } finally {
+      setLoading(false);
+    }
+  }, [profile?.user_id, setProfile]);
 
-  if (!birthChart) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyEmoji}>🌌</Text>
-        <Text style={styles.emptyTitle}>No birth chart found</Text>
-        <Text style={styles.emptyText}>
-          Complete your profile to see your birth chart.
-        </Text>
-      </View>
-    );
-  }
+  useEffect(() => {
+    fetchChart();
+  }, [fetchChart]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchChart();
+    setRefreshing(false);
+  };
+
+  const getElementColor = (element: string) => {
+    switch (element.toLowerCase()) {
+      case 'fire': return '#FF6B6B';
+      case 'earth': return '#4ECDC4';
+      case 'air': return '#45B7D1';
+      case 'water': return '#5F27CD';
+      default: return colors.textSecondary;
+    }
+  };
 
   return (
-    <ErrorBoundary>
+    <GradientBackground>
+      <StatusBar style="light" />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+          />
+        }
       >
-        <Text style={styles.title} accessibilityRole="header">Your Birth Chart</Text>
+        <Text style={styles.title}>Natal Chart</Text>
         <Text style={styles.subtitle}>
-          {profile?.birth_date} • {profile?.birth_time} • {profile?.city}
+          {profile?.display_name}'s Cosmic Blueprint
         </Text>
 
-        {/* Big Three */}
-        <Card>
-          <Text style={styles.cardLabel}>The Big Three</Text>
-          <View style={styles.bigThreeRow}>
-            <BigThreeItem
-              label="Sun"
-              sign={sunSign}
-              icon="☀️"
-              description="Your core identity"
-            />
-            <BigThreeItem
-              label="Moon"
-              sign={moonSign}
-              icon="🌙"
-              description="Your emotional self"
-            />
-            <BigThreeItem
-              label="Rising"
-              sign={ascSign}
-              icon="⬆️"
-              description="How others see you"
-            />
-          </View>
-        </Card>
-
-        {/* Planetary Placements */}
-        <Card>
-          <Text style={styles.cardLabel}>Planetary Placements</Text>
-          {Object.entries(planets).map(([name, data]: [string, any]) => (
-            <View
-              key={name}
-              style={styles.planetRow}
-              accessibilityLabel={`${name} in ${data.sign} at ${data.degree} degrees, house ${data.house}${data.retrograde ? ', retrograde' : ''}`}
-            >
-              <Text style={styles.planetSymbol}>
-                {PLANET_SYMBOLS[name] || '⚫'}
-              </Text>
-              <View style={styles.planetInfo}>
-                <Text style={styles.planetName}>{name}</Text>
-                <Text style={styles.planetDetail}>
-                  {ZODIAC_SYMBOLS[data.sign] || ''} {data.sign} {data.degree}°
-                  {data.retrograde ? ' ℞' : ''}
-                </Text>
-              </View>
-              <Text style={styles.houseLabel}>H{data.house}</Text>
-            </View>
-          ))}
-        </Card>
-
-        {/* Houses */}
-        {birthChart.houses && birthChart.houses.length > 0 && (
-          <Card>
-            <Text style={styles.cardLabel}>Houses</Text>
-            <View style={styles.houseGrid}>
-              {birthChart.houses.map((house: any) => (
-                <View
-                  key={house.house}
-                  style={styles.houseCell}
-                  accessibilityLabel={`House ${house.house}: ${house.sign} at ${house.degree} degrees`}
-                >
-                  <Text style={styles.houseNumber}>{house.house}</Text>
-                  <Text style={styles.houseSign}>
-                    {ZODIAC_SYMBOLS[house.sign] || ''} {house.sign}
-                  </Text>
-                  <Text style={styles.houseDegree}>{house.degree}°</Text>
+        {loading ? (
+          <BriefingSkeleton />
+        ) : chart ? (
+          <View>
+            {/* Core Planets */}
+            <Card style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>The Big Three</Text>
+              <View style={styles.bigThreeContainer}>
+                <View style={styles.bigThreeItem}>
+                  <Text style={styles.planetSymbol}>☉</Text>
+                  <Text style={styles.bigThreeLabel}>Sun</Text>
+                  <Text style={styles.bigThreeValue}>{chart.planets.Sun.sign}</Text>
                 </View>
-              ))}
-            </View>
-          </Card>
-        )}
-
-        {/* Aspects */}
-        {birthChart.aspects && birthChart.aspects.length > 0 && (
-          <Card>
-            <Text style={styles.cardLabel}>Major Aspects</Text>
-            {birthChart.aspects.slice(0, 12).map((aspect: any, i: number) => (
-              <View
-                key={i}
-                style={styles.aspectRow}
-                accessibilityLabel={`${aspect.planet1} ${aspect.type} ${aspect.planet2}, orb ${aspect.orb} degrees`}
-              >
-                <Text style={styles.aspectPlanet}>{aspect.planet1}</Text>
-                <Text style={styles.aspectType}>
-                  {getAspectSymbol(aspect.type)}
-                </Text>
-                <Text style={styles.aspectPlanet}>{aspect.planet2}</Text>
-                <Text style={styles.aspectOrb}>
-                  {aspect.orb}° orb
-                </Text>
+                <View style={styles.divider} />
+                <View style={styles.bigThreeItem}>
+                  <Text style={styles.planetSymbol}>☽</Text>
+                  <Text style={styles.bigThreeLabel}>Moon</Text>
+                  <Text style={styles.bigThreeValue}>{chart.planets.Moon.sign}</Text>
+                </View>
+                {chart.ascendant && (
+                  <>
+                    <View style={styles.divider} />
+                    <View style={styles.bigThreeItem}>
+                      <Text style={styles.planetSymbol}>↑</Text>
+                      <Text style={styles.bigThreeLabel}>Rising</Text>
+                      <Text style={styles.bigThreeValue}>{chart.ascendant.sign}</Text>
+                    </View>
+                  </>
+                )}
               </View>
-            ))}
+            </Card>
+
+            {/* Planetary Placements */}
+            <Card style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Planetary Placements</Text>
+              {Object.entries(chart.planets).map(([planet, data]: [string, any]) => {
+                if (planet === 'Ascendant') return null;
+                const element = ELEMENTS[data.sign] || 'Unknown';
+                const quality = QUALITIES[data.sign] || 'Unknown';
+
+                return (
+                  <View key={planet} style={styles.planetRow}>
+                    <View style={styles.planetInfo}>
+                      <Text style={styles.planetSymbolText}>
+                        {PLANET_SYMBOLS[planet] || ''}
+                      </Text>
+                      <Text style={styles.planetName}>{planet}</Text>
+                    </View>
+                    <View style={styles.placementInfo}>
+                      <View style={styles.signBadge}>
+                        <Text style={styles.signSymbol}>
+                          {ZODIAC_SYMBOLS[data.sign] || ''}
+                        </Text>
+                        <Text style={styles.signName}>{data.sign}</Text>
+                      </View>
+                      <View style={styles.houseBadge}>
+                        <Text style={styles.houseText}>
+                          {data.house ? `House ${data.house}` : ''} {data.retrograde ? ' (Rx)' : ''}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={[styles.elementDot, { backgroundColor: getElementColor(element) }]} />
+                  </View>
+                );
+              })}
+            </Card>
+
+            {/* Houses (if available) */}
+            {chart.houses && (
+              <Card style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>House Cups</Text>
+                {chart.houses.map((data) => (
+                  <View key={data.house} style={styles.houseRow}>
+                    <Text style={styles.houseNumber}>House {data.house}</Text>
+                    <Text style={styles.houseSign}>{data.sign}</Text>
+                    <Text style={styles.houseDegree}>{data.degree?.toFixed(1)}°</Text>
+                  </View>
+                ))}
+              </Card>
+            )}
+          </View>
+        ) : (
+          <Card>
+            <Text style={styles.errorText}>
+              Chart data unavailable. Please verify your birth details in settings.
+            </Text>
           </Card>
         )}
-
-        {/* Element & Quality */}
-        <Card>
-          <Text style={styles.cardLabel}>Sun Sign Profile</Text>
-          <View style={styles.profileRow}>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>Element</Text>
-              <Text style={styles.profileValue}>
-                {ELEMENTS[sunSign] || '-'}
-              </Text>
-            </View>
-            <View style={styles.profileItem}>
-              <Text style={styles.profileLabel}>Quality</Text>
-              <Text style={styles.profileValue}>
-                {QUALITIES[sunSign] || '-'}
-              </Text>
-            </View>
-          </View>
-        </Card>
       </ScrollView>
-    </ErrorBoundary>
+    </GradientBackground>
   );
-}
-
-function BigThreeItem({
-  label,
-  sign,
-  icon,
-  description,
-}: {
-  label: string;
-  sign: string;
-  icon: string;
-  description: string;
-}) {
-  return (
-    <View style={styles.bigThreeItem} accessibilityLabel={`${label}: ${sign}. ${description}`}>
-      <Text style={styles.bigThreeIcon}>{icon}</Text>
-      <Text style={styles.bigThreeSign}>
-        {ZODIAC_SYMBOLS[sign] || ''} {sign}
-      </Text>
-      <Text style={styles.bigThreeLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function getAspectSymbol(type: string): string {
-  const symbols: Record<string, string> = {
-    conjunction: '☌',
-    opposition: '☍',
-    trine: '△',
-    square: '□',
-    sextile: '⚹',
-  };
-  return symbols[type] || type;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   content: {
     padding: spacing.lg,
-    paddingTop: spacing.xxl + spacing.lg,
+    paddingTop: spacing.xxl * 1.5,
     paddingBottom: spacing.xxl,
   },
   title: {
     fontSize: typography.fontSize.xxl,
     fontWeight: typography.fontWeight.bold,
     color: colors.textPrimary,
+    textAlign: 'center',
     marginBottom: 4,
   },
   subtitle: {
     fontSize: typography.fontSize.sm,
     color: colors.textSecondary,
+    textAlign: 'center',
     marginBottom: spacing.xl,
   },
-  cardLabel: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.semibold,
+  sectionCard: {
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.bold,
     color: colors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginBottom: spacing.md,
   },
-  bigThreeRow: {
+  bigThreeContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
   },
   bigThreeItem: {
     alignItems: 'center',
-    flex: 1,
   },
-  bigThreeIcon: {
-    fontSize: 28,
+  planetSymbol: {
+    fontSize: 24,
+    color: colors.primary,
     marginBottom: 4,
-  },
-  bigThreeSign: {
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.textPrimary,
-    marginBottom: 2,
   },
   bigThreeLabel: {
     fontSize: typography.fontSize.xs,
-    color: colors.textTertiary,
+    color: colors.textSecondary,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+  },
+  bigThreeValue: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  divider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   planetRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceHover,
-  },
-  planetSymbol: {
-    fontSize: 18,
-    width: 28,
-    textAlign: 'center',
+    borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   planetInfo: {
-    flex: 1,
-    marginLeft: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 100,
+  },
+  planetSymbolText: {
+    fontSize: 16,
+    color: colors.primary,
+    marginRight: spacing.sm,
+    width: 20,
+    textAlign: 'center',
   },
   planetName: {
     fontSize: typography.fontSize.base,
+    color: colors.textPrimary,
     fontWeight: typography.fontWeight.medium,
+  },
+  placementInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  signBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  signSymbol: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginRight: 4,
+  },
+  signName: {
+    fontSize: typography.fontSize.base,
     color: colors.textPrimary,
   },
-  planetDetail: {
-    fontSize: typography.fontSize.sm,
+  houseBadge: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  houseText: {
+    fontSize: 10,
     color: colors.textSecondary,
   },
-  houseLabel: {
-    fontSize: typography.fontSize.sm,
-    color: colors.textTertiary,
-    fontWeight: typography.fontWeight.medium,
-    minWidth: 28,
-    textAlign: 'right',
+  elementDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: spacing.sm,
   },
-  houseGrid: {
+  houseRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  houseCell: {
-    width: '25%',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.03)',
   },
   houseNumber: {
-    fontSize: typography.fontSize.xs,
-    color: colors.textTertiary,
-    fontWeight: typography.fontWeight.semibold,
-    marginBottom: 2,
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    width: 80,
   },
   houseSign: {
-    fontSize: typography.fontSize.sm,
+    fontSize: typography.fontSize.base,
     color: colors.textPrimary,
+    fontWeight: typography.fontWeight.medium,
+    flex: 1,
   },
   houseDegree: {
     fontSize: typography.fontSize.xs,
     color: colors.textTertiary,
   },
-  aspectRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-    gap: spacing.sm,
-  },
-  aspectPlanet: {
-    fontSize: typography.fontSize.sm,
-    color: colors.textPrimary,
-    fontWeight: typography.fontWeight.medium,
-    minWidth: 70,
-  },
-  aspectType: {
-    fontSize: 16,
-    color: colors.primary,
-    minWidth: 24,
-    textAlign: 'center',
-  },
-  aspectOrb: {
-    fontSize: typography.fontSize.xs,
-    color: colors.textTertiary,
-    marginLeft: 'auto',
-  },
-  profileRow: {
-    flexDirection: 'row',
-    gap: spacing.xl,
-  },
-  profileItem: {
-    flex: 1,
-  },
-  profileLabel: {
-    fontSize: typography.fontSize.xs,
-    color: colors.textTertiary,
-    marginBottom: 4,
-  },
-  profileValue: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.textPrimary,
-  },
-  emptyContainer: {
-    flex: 1,
-    backgroundColor: colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: spacing.md,
-  },
-  emptyTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  emptyText: {
-    fontSize: typography.fontSize.base,
+  errorText: {
     color: colors.textSecondary,
     textAlign: 'center',
   },
