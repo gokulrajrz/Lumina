@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Platform, View, TouchableOpacity, Text, Dimensions } from 'react-native';
+import { StyleSheet, Platform, View, TouchableOpacity, Text } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -11,9 +11,8 @@ import Animated, {
   withSequence,
   withRepeat
 } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 import { colors, typography } from '../../constants/theme';
-
-const TAB_WIDTH_PERCENT = 33.33; // 3 tabs share 100% width
 
 const TabButton = ({
   route,
@@ -171,17 +170,26 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
   const indicatorStyle = useAnimatedStyle(() => {
     return {
       opacity: indicatorOpacity.value,
-      // Calculate basic percentage position (0%, 33.3%, 66.6%)
       left: `${indicatorPosition.value * 33.33}%`
     };
   });
 
+  // Reusable background component for Glass effect
+  const GlassBackground = () => (
+    isIOS ? (
+      <BlurView tint="dark" intensity={80} style={StyleSheet.absoluteFill} />
+    ) : (
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(21, 21, 21, 0.95)' }]} />
+    )
+  );
+
   return (
     <View style={[styles.tabContainer, { paddingBottom: isIOS ? 30 : 20 }]}>
-      {/* Main Pill Container (Shadow wrapper) */}
+      {/* Main Pill Container */}
       <View style={styles.pillShadowWrapper}>
         <View style={styles.pillInnerContainer}>
-          {/* Track Layer (Padding handled by margin) */}
+          <GlassBackground />
+
           <View style={styles.pillTrack}>
             <Animated.View style={[styles.activeIndicator, indicatorStyle]} />
 
@@ -202,6 +210,7 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
       {/* Isolated Circle Container */}
       {isolatedTab && (
         <View style={styles.circleContainer}>
+          <GlassBackground />
           <TabButton
             key={isolatedTab.key}
             route={isolatedTab}
@@ -275,53 +284,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     elevation: 0,
+    // Add zIndex to ensure it floats above content
+    zIndex: 1000,
   },
   pillShadowWrapper: {
     flex: 1,
     height: 60,
     marginRight: 15,
     borderRadius: 30,
-    backgroundColor: '#151515', // Background needed for shadow to show right
+    // Shadow needs a background to cast from, but we want glass.
+    // iOS handles shadow on layer. We can try adding shadow props here.
+    backgroundColor: 'transparent',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 20,
     elevation: 5,
   },
   pillInnerContainer: {
     flex: 1,
-    backgroundColor: '#151515', // Background here too
+    backgroundColor: 'transparent',
     borderRadius: 30,
-    overflow: 'hidden', // Clip content
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)', // Glass border
   },
   pillTrack: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    margin: 5, // The "Professional" Padding gap
-    borderRadius: 25, // 30 - 5
+    margin: 5,
+    borderRadius: 25,
     position: 'relative',
-    // backgroundColor: 'rgba(255,255,255,0.03)', // Optional: subtle track bg? Keeping transparent for now.
   },
   activeIndicator: {
     position: 'absolute',
-    width: '33.33%', // 1/3 of track
-    height: '100%',  // Fill track
+    width: '33.33%',
+    height: '100%',
     top: 0,
-    backgroundColor: '#2A2A2A', // Capsule color
-    borderRadius: 25, // Match track radius
-    zIndex: 0, // Behind buttons
+    backgroundColor: 'rgba(255,255,255,0.15)', // Lighter glass for active
+    borderRadius: 25,
+    zIndex: 0,
   },
   circleContainer: {
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#151515',
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 20,
     elevation: 5,
   },
@@ -330,8 +347,8 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1, // Above indicator
-    borderRadius: 25, // Match track
+    zIndex: 1,
+    borderRadius: 25,
   },
   tabContent: {
     alignItems: 'center',
@@ -345,6 +362,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   isolatedButtonActive: {
-    backgroundColor: '#2A2A2A',
+    backgroundColor: 'rgba(255,255,255,0.15)',
   }
 });
