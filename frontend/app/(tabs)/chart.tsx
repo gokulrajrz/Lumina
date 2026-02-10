@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     height: 40,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.border,
   },
   planetRow: {
     flexDirection: 'row',
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: colors.border,
   },
   planetInfo: {
     flexDirection: 'row',
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   houseBadge: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: colors.surface,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.03)',
+    borderBottomColor: colors.border,
   },
   houseNumber: {
     fontSize: typography.fontSize.sm,

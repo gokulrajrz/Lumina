@@ -59,12 +59,10 @@ export default function AskScreen() {
       >
         {!isUser && (
           <View style={styles.aiAvatar}>
-            <Ionicons name="sparkles" size={16} color="#FFF" />
+            <Ionicons name="sparkles" size={16} color={colors.background} />
           </View>
         )}
-        <GlassView
-          intensity={isUser ? 0 : 20}
-          tint="dark"
+        <View
           style={[styles.messageBubble, isUser ? styles.userBubble : styles.aiBubble]}
         >
           {!isUser && (
@@ -73,7 +71,7 @@ export default function AskScreen() {
           <Text style={[styles.messageText, isUser && styles.userMessageText]}>
             {item.content}
           </Text>
-        </GlassView>
+        </View>
       </View>
     );
   };
@@ -93,7 +91,7 @@ export default function AskScreen() {
             onPress={handleNewChat}
             style={styles.newChatButton}
           >
-            <Ionicons name="create-outline" size={22} color={colors.primary} />
+            <Ionicons name="create-outline" size={22} color={colors.textPrimary} />
             <Text style={styles.newChatText}>New</Text>
           </TouchableOpacity>
         </View>
@@ -116,9 +114,9 @@ export default function AskScreen() {
                   key={i}
                   onPress={() => setInput(suggestion)}
                 >
-                  <GlassView style={styles.suggestionChip} intensity={20} tint="dark">
+                  <View style={styles.suggestionChip}>
                     <Text style={styles.suggestionText}>{suggestion}</Text>
-                  </GlassView>
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
@@ -143,12 +141,12 @@ export default function AskScreen() {
         )}
 
         {/* Input */}
-        <GlassView style={styles.inputContainer} intensity={30} tint="dark">
+        <View style={styles.inputContainer}>
           <TouchableOpacity
-            onPress={Keyboard.dismiss}
+            onPress={() => Keyboard.dismiss()}
             style={styles.dismissButton}
           >
-            <Ionicons name="chevron-down" size={24} color={colors.textSecondary} />
+            <Ionicons name="chevron-down" size={24} color={colors.textTertiary} />
           </TouchableOpacity>
           <TextInput
             style={styles.input}
@@ -171,10 +169,10 @@ export default function AskScreen() {
             <Ionicons
               name="arrow-up-circle"
               size={40}
-              color={input.trim() && !isLoading ? colors.primary : colors.textTertiary}
+              color={input.trim() && !isLoading ? colors.textPrimary : colors.textTertiary}
             />
           </TouchableOpacity>
-        </GlassView>
+        </View>
       </KeyboardAvoidingView>
     </GradientBackground>
   );
@@ -192,7 +190,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xxl * 1.5,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: colors.border,
   },
   title: {
     fontSize: typography.fontSize.xl,
@@ -205,12 +203,12 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.surface,
     borderRadius: 16,
   },
   newChatText: {
     fontSize: typography.fontSize.sm,
-    color: colors.primary,
+    color: colors.textPrimary,
     fontWeight: typography.fontWeight.medium,
   },
   messageList: {
@@ -232,7 +230,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
@@ -244,15 +242,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   userBubble: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.surfaceHighlight,
     borderBottomRightRadius: 4,
   },
   aiBubble: {
+    backgroundColor: colors.surface,
     borderBottomLeftRadius: 4,
   },
   aiLabel: {
     fontSize: typography.fontSize.xs,
-    color: colors.primary,
+    color: colors.textSecondary,
     fontWeight: typography.fontWeight.bold,
     marginBottom: 4,
   },
@@ -262,7 +261,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   userMessageText: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
   },
   typingIndicator: {
     paddingHorizontal: spacing.lg,
@@ -277,17 +276,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     padding: spacing.md,
-    paddingBottom: spacing.xl, // Extra padding for tab bar bottom
-    marginBottom: 85, // Lift above absolute tab bar
+    paddingBottom: spacing.xl,
+    marginBottom: 85,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
   },
   input: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: colors.surface,
     borderRadius: 24,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md, // More comfortable padding
+    paddingVertical: spacing.md,
     fontSize: typography.fontSize.base,
     color: colors.textPrimary,
     maxHeight: 120,
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   sendButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.3,
   },
   emptyState: {
     flex: 1,
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   suggestionChip: {
     borderRadius: 12,
     padding: spacing.md,
-    overflow: 'hidden',
+    backgroundColor: colors.surface,
   },
   suggestionText: {
     fontSize: typography.fontSize.sm,

@@ -1,5 +1,5 @@
 /**
- * Home Screen — Daily Briefing Dashboard with skeleton loading and settings.
+ * Home Screen — Matte Dark Daily Briefing with date picker header.
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -10,7 +10,6 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  StatusBar as RNStatusBar,
   Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -23,8 +22,34 @@ import { BriefingSkeleton } from '../../components/ui/SkeletonLoader';
 import { ErrorBoundary } from '../../components/ui/ErrorBoundary';
 import { useUserStore } from '../../stores/userStore';
 import { api } from '../../services/api';
-import { colors, spacing, typography, shadows } from '../../constants/theme';
+import { colors, spacing, typography } from '../../constants/theme';
 import { DailyBriefing } from '../../types';
+
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function getWeekDays() {
+  const today = new Date();
+  const currentDay = today.getDay();
+  const result = [];
+
+  for (let i = -2; i <= 4; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    result.push({
+      dayName: DAYS[d.getDay()],
+      date: d.getDate(),
+      isToday: i === 0,
+    });
+  }
+  return result;
+}
+
+function getTimeOfDay(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'morning';
+  if (hour < 17) return 'afternoon';
+  return 'evening';
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -34,6 +59,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const weekDays = getWeekDays();
 
   const fetchBriefing = useCallback(async () => {
     if (!profile?.user_id) {
@@ -72,6 +98,7 @@ export default function HomeScreen() {
 
   const planets = profile?.birth_chart?.planets;
   const sunSign = planets?.Sun?.sign || 'Cosmic';
+  const firstName = profile?.display_name?.split(' ')[0] || 'Traveler';
 
   return (
     <GradientBackground>
@@ -85,28 +112,57 @@ export default function HomeScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor={colors.primary}
-              colors={[colors.primary]}
+              tintColor={colors.textPrimary}
+              colors={[colors.textPrimary]}
               progressViewOffset={50}
             />
           }
         >
           {/* Header */}
           <View style={styles.header}>
-            <View>
-              <Text style={styles.greeting} accessibilityRole="header">
-                Good {getTimeOfDay()}, {profile?.display_name?.split(' ')[0] || 'Traveler'}
-              </Text>
-              <Text style={styles.subGreeting}>{sunSign} Sun • Ascendant Rising</Text>
-            </View>
             <TouchableOpacity
               onPress={() => router.push('/settings')}
-              style={styles.settingsButton}
+              style={styles.menuButton}
               accessibilityLabel="Open settings"
               accessibilityRole="button"
             >
-              <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
+              <Ionicons name="grid-outline" size={22} color={colors.textPrimary} />
             </TouchableOpacity>
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatar}>
+                <Ionicons name="person" size={22} color={colors.textSecondary} />
+              </View>
+            </View>
+          </View>
+
+          {/* Greeting */}
+          <View style={styles.greetingSection}>
+            <Text style={styles.greeting}>
+              Hello {firstName},
+            </Text>
+            <Text style={styles.subGreeting}>
+              What do you want to know?
+            </Text>
+          </View>
+
+          {/* Date Picker */}
+          <View style={styles.datePicker}>
+            {weekDays.map((day, i) => (
+              <TouchableOpacity
+                key={i}
+                style={styles.dayItem}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.dayCircle, day.isToday && styles.dayCircleActive]}>
+                  <Text style={[styles.dayDate, day.isToday && styles.dayDateActive]}>
+                    {day.date}
+                  </Text>
+                </View>
+                <Text style={[styles.dayName, day.isToday && styles.dayNameActive]}>
+                  {day.dayName}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           {/* Loading State */}
@@ -185,11 +241,11 @@ export default function HomeScreen() {
                 </Card>
               )}
 
-              {/* Lucky Info & Journal Prompt */}
+              {/* Lucky Info */}
               <View style={styles.row}>
                 <Card style={styles.halfCard}>
                   <Text style={styles.cardLabel}>Lucky Color</Text>
-                  <Text style={[styles.luckyValue, { color: briefing.luckyColor ? colors.textPrimary : colors.textSecondary }]}>
+                  <Text style={styles.luckyValue}>
                     {briefing.luckyColor || '—'}
                   </Text>
                 </Card>
@@ -199,6 +255,7 @@ export default function HomeScreen() {
                 </Card>
               </View>
 
+              {/* Journal Prompt */}
               {briefing.journalPrompt && (
                 <Card>
                   <Text style={styles.cardLabel}>Journal Prompt</Text>
@@ -234,21 +291,14 @@ export default function HomeScreen() {
   );
 }
 
-function getTimeOfDay(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'morning';
-  if (hour < 17) return 'afternoon';
-  return 'evening';
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
   content: {
-    padding: spacing.lg,
-    paddingTop: spacing.xxl + spacing.lg,
-    paddingBottom: spacing.xxl * 3, // Safe clearance for tab bar
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xxl + spacing.md,
+    paddingBottom: spacing.xxl * 3,
   },
   header: {
     flexDirection: 'row',
@@ -257,28 +307,75 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
     marginTop: spacing.md,
   },
+  menuButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarContainer: {
+    alignItems: 'flex-end',
+  },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.surfaceHighlight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  greetingSection: {
+    marginBottom: spacing.xl,
+  },
   greeting: {
     fontSize: typography.fontSize.xxl,
     fontWeight: typography.fontWeight.bold,
     color: colors.textPrimary,
     marginBottom: 4,
-    letterSpacing: -0.5,
   },
   subGreeting: {
-    fontSize: typography.fontSize.sm,
-    color: colors.primaryLight,
-    fontWeight: typography.fontWeight.medium,
-    letterSpacing: 0.5,
+    fontSize: typography.fontSize.lg,
+    color: colors.textSecondary,
+    fontWeight: typography.fontWeight.regular,
   },
-  settingsButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  datePicker: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xl,
+    paddingHorizontal: spacing.xs,
+  },
+  dayItem: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  dayCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  dayCircleActive: {
+    backgroundColor: colors.textPrimary,
+  },
+  dayDate: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.textSecondary,
+  },
+  dayDateActive: {
+    color: colors.background,
+  },
+  dayName: {
+    fontSize: 10,
+    color: colors.textTertiary,
+    textTransform: 'capitalize',
+  },
+  dayNameActive: {
+    color: colors.textPrimary,
   },
   briefingContainer: {
     gap: spacing.sm,
@@ -326,22 +423,21 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: colors.surfaceHighlight,
   },
   dotActive: {
-    backgroundColor: colors.primary,
-    ...shadows.glow,
+    backgroundColor: colors.textPrimary,
   },
   forecastRow: {
     marginBottom: spacing.md,
     paddingBottom: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: colors.border,
   },
   periodLabel: {
     fontSize: typography.fontSize.sm,
     fontWeight: typography.fontWeight.semibold,
-    color: colors.primaryLight,
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   forecastText: {
@@ -357,7 +453,7 @@ const styles = StyleSheet.create({
   },
   favorIcon: {
     fontSize: 16,
-    color: colors.accent,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   favorText: {
@@ -400,6 +496,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     paddingLeft: spacing.sm,
     borderLeftWidth: 2,
-    borderLeftColor: colors.primary,
+    borderLeftColor: colors.textTertiary,
   },
 });

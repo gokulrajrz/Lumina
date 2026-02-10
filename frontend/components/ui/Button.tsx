@@ -1,8 +1,6 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, Platform, StyleProp } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { colors, typography, spacing, shadows } from '../../constants/theme';
-import { GlassView } from './Layout/GlassView';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, StyleProp } from 'react-native';
+import { colors, typography, spacing } from '../../constants/theme';
 
 interface ButtonProps {
   title: string;
@@ -25,65 +23,34 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
   const isDisabled = disabled || loading;
 
-  const content = (
-    <>
-      {loading ? (
-        <ActivityIndicator color={colors.textPrimary} />
-      ) : (
-        <Text
-          style={[
-            styles.text,
-            variant === 'primary' ? styles.primaryText : styles.secondaryText,
-            variant === 'ghost' && styles.ghostText,
-          ]}
-        >
-          {title}
-        </Text>
-      )}
-    </>
+  const content = loading ? (
+    <ActivityIndicator color={variant === 'primary' ? colors.background : colors.textPrimary} />
+  ) : (
+    <Text
+      style={[
+        styles.text,
+        variant === 'primary' && styles.primaryText,
+        variant === 'secondary' && styles.secondaryText,
+        variant === 'ghost' && styles.ghostText,
+      ]}
+    >
+      {title}
+    </Text>
   );
 
-  if (variant === 'primary') {
-    return (
-      <TouchableOpacity
-        onPress={onPress}
-        disabled={isDisabled}
-        style={[styles.touchable, fullWidth && styles.fullWidth, style, isDisabled && styles.disabled]}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={colors.primaryGradient as [string, string, ...string[]]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradient}
-        >
-          {content}
-        </LinearGradient>
-      </TouchableOpacity>
-    );
-  }
-
-  if (variant === 'secondary') {
-    return (
-      <TouchableOpacity
-        onPress={onPress}
-        disabled={isDisabled}
-        style={[styles.touchable, fullWidth && styles.fullWidth, style, isDisabled && styles.disabled]}
-        activeOpacity={0.7}
-      >
-        <GlassView style={styles.secondaryContainer} intensity={10}>
-          {content}
-        </GlassView>
-      </TouchableOpacity>
-    );
-  }
-
-  // Ghost
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={isDisabled}
-      style={[styles.ghost, fullWidth && styles.fullWidth, style, isDisabled && styles.disabled]}
+      style={[
+        variant === 'primary' && styles.primary,
+        variant === 'secondary' && styles.secondary,
+        variant === 'ghost' && styles.ghost,
+        fullWidth && styles.fullWidth,
+        isDisabled && styles.disabled,
+        style,
+      ]}
+      activeOpacity={0.7}
     >
       {content}
     </TouchableOpacity>
@@ -91,31 +58,25 @@ export const Button: React.FC<ButtonProps> = ({
 };
 
 const styles = StyleSheet.create({
-  touchable: {
-    borderRadius: 16,
-    ...shadows.md,
-  },
-  fullWidth: {
-    width: '100%',
-  },
-  gradient: {
+  primary: {
+    backgroundColor: colors.textPrimary,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 56,
+    minHeight: 52,
   },
-  secondaryContainer: {
+  secondary: {
+    backgroundColor: colors.surface,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 56,
-    width: '100%',
-    borderColor: 'rgba(255,255,255,0.2)',
+    minHeight: 52,
     borderWidth: 1,
+    borderColor: colors.border,
   },
   ghost: {
     paddingVertical: spacing.sm,
@@ -123,19 +84,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 40,
   },
+  fullWidth: {
+    width: '100%',
+  },
   disabled: {
-    opacity: 0.6,
+    opacity: 0.4,
   },
   text: {
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.semibold,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   primaryText: {
-    color: colors.textPrimary,
+    color: colors.background,
   },
   secondaryText: {
-    color: colors.textSecondary,
+    color: colors.textPrimary,
   },
   ghostText: {
     color: colors.textSecondary,

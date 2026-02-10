@@ -17,7 +17,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { GradientBackground } from '../../components/ui/Layout/GradientBackground';
-import { GlassView } from '../../components/ui/Layout/GlassView';
 import { JournalSkeleton } from '../../components/ui/SkeletonLoader';
 import { useUserStore } from '../../stores/userStore';
 import { api } from '../../services/api';
@@ -68,7 +67,7 @@ export default function JournalScreen() {
     try {
       const newEntry = await api.createJournalEntry(profile.user_id, {
         content: newEntryText,
-        mood: 3, // Neutral
+        mood: 3,
         tags: [],
       });
 
@@ -121,7 +120,7 @@ export default function JournalScreen() {
             style={styles.addButton}
             onPress={() => setWriting(true)}
           >
-            <Ionicons name="add" size={24} color="#FFF" />
+            <Ionicons name="add" size={24} color={colors.background} />
           </TouchableOpacity>
         </View>
 
@@ -137,7 +136,7 @@ export default function JournalScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
-                tintColor={colors.primary}
+                tintColor={colors.textPrimary}
               />
             }
             ListEmptyComponent={
@@ -156,16 +155,16 @@ export default function JournalScreen() {
         )}
 
         <Modal visible={writing} animationType="slide" transparent>
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <GlassView style={styles.modalContainer} intensity={90} tint="dark">
+          <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+            <View style={styles.modalContainer}>
               <View style={styles.modalHeader}>
                 <TouchableOpacity onPress={() => setWriting(false)}>
                   <Text style={styles.modalCancel}>Cancel</Text>
                 </TouchableOpacity>
-                <View style={styles.titleContainer}>
+                <View style={styles.titleRow}>
                   <Text style={styles.modalTitle}>New Entry</Text>
-                  <TouchableOpacity onPress={Keyboard.dismiss} style={styles.headerDismiss}>
-                    <Ionicons name="chevron-down-circle-outline" size={20} color={colors.textSecondary} />
+                  <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.headerDismiss}>
+                    <Ionicons name="chevron-down-circle-outline" size={20} color={colors.textTertiary} />
                   </TouchableOpacity>
                 </View>
                 <TouchableOpacity
@@ -186,7 +185,7 @@ export default function JournalScreen() {
                 onChangeText={setNewEntryText}
                 autoFocus
               />
-            </GlassView>
+            </View>
           </TouchableWithoutFeedback>
         </Modal>
       </View>
@@ -215,18 +214,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
   listContent: {
     padding: spacing.lg,
-    paddingBottom: 130, // Clearance for tab bar
+    paddingBottom: 130,
   },
   entryCard: {
     marginBottom: spacing.md,
@@ -239,7 +233,7 @@ const styles = StyleSheet.create({
   entryDate: {
     fontSize: typography.fontSize.sm,
     fontWeight: typography.fontWeight.semibold,
-    color: colors.primary,
+    color: colors.textPrimary,
   },
   entryTime: {
     fontSize: typography.fontSize.xs,
@@ -253,15 +247,15 @@ const styles = StyleSheet.create({
   insightContainer: {
     marginTop: spacing.md,
     padding: spacing.md,
-    backgroundColor: 'rgba(108, 92, 231, 0.1)',
+    backgroundColor: colors.surfaceHover,
     borderRadius: 12,
     borderLeftWidth: 2,
-    borderLeftColor: colors.primary,
+    borderLeftColor: colors.textTertiary,
   },
   insightLabel: {
     fontSize: typography.fontSize.xs,
     fontWeight: typography.fontWeight.bold,
-    color: colors.primary,
+    color: colors.textSecondary,
     marginBottom: 4,
     textTransform: 'uppercase',
   },
@@ -288,6 +282,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     paddingTop: spacing.xxl,
+    backgroundColor: colors.background,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -296,12 +291,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    borderBottomColor: colors.border,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   modalTitle: {
     fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.bold,
     color: colors.textPrimary,
+  },
+  headerDismiss: {
+    padding: 4,
   },
   modalCancel: {
     fontSize: typography.fontSize.base,
@@ -309,11 +312,11 @@ const styles = StyleSheet.create({
   },
   modalSave: {
     fontSize: typography.fontSize.base,
-    color: colors.primary,
+    color: colors.textPrimary,
     fontWeight: typography.fontWeight.bold,
   },
   disabledText: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   input: {
     flex: 1,
@@ -321,13 +324,5 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.lg,
     color: colors.textPrimary,
     textAlignVertical: 'top',
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerDismiss: {
-    padding: 4,
   },
 });

@@ -1,40 +1,42 @@
 export const colors = {
-  // Deep Space Backgrounds
-  background: '#050511', // Almost black, deep void
-  surface: 'rgba(255, 255, 255, 0.05)', // Glassy
-  surfaceHover: 'rgba(255, 255, 255, 0.1)',
-  surfaceHighlight: 'rgba(255, 255, 255, 0.15)',
+  // Matte Dark Backgrounds
+  background: '#1A1A1A',
+  surface: '#242424',
+  surfaceHover: '#2E2E2E',
+  surfaceHighlight: '#383838',
 
-  // Brand Gradients (Start -> End)
-  primaryGradient: ['#6C5CE7', '#a29bfe'], // Soft purple
-  secondaryGradient: ['#0984E3', '#74b9ff'], // Electric blue
-  accentGradient: ['#FFD93D', '#ffeaa7'], // Golden types
+  // Brand
+  primary: '#FFFFFF',
+  primaryDark: '#E0E0E0',
+  primaryLight: '#FFFFFF',
 
-  // Solid Fallbacks
-  primary: '#6C5CE7',
-  primaryDark: '#5849C8',
-  primaryLight: '#A29BFE',
-  accent: '#FFD93D',
+  // Grayscale accents
+  primaryGradient: ['#FFFFFF', '#E0E0E0'],
+  secondaryGradient: ['#242424', '#1A1A1A'],
+  accentGradient: ['#333333', '#2A2A2A'],
+
+  accent: '#FFFFFF',
 
   // Text
   textPrimary: '#FFFFFF',
-  textSecondary: '#B0B0C0', // Stardust grey
-  textTertiary: 'rgba(255, 255, 255, 0.4)',
+  textSecondary: '#888888',
+  textTertiary: '#555555',
 
   // Functional
-  error: '#FF6B6B',
-  success: '#4ECDC4',
-  info: '#74B9FF',
+  error: '#FF4D4D',
+  success: '#4ADE80',
+  info: '#60A5FA',
 
-  // Moods (for Journal)
-  mood1: '#2d3436', // Deep sorrow
-  mood2: '#636e72', // Melancholy
-  mood3: '#b2bec3', // Neutral
-  mood4: '#74b9ff', // Light
-  mood5: '#fdcb6e', // Radiant
+  // Moods
+  mood1: '#2A2A2A',
+  mood2: '#444444',
+  mood3: '#666666',
+  mood4: '#60A5FA',
+  mood5: '#FBBF24',
 
-  // Special
-  glassBorder: 'rgba(255, 255, 255, 0.1)',
+  // Borders & Shadows (minimal for matte)
+  border: '#2A2A2A',
+  glassBorder: '#2A2A2A',
   glassShadow: '#000000',
 };
 
@@ -50,7 +52,7 @@ export const spacing = {
 
 export const typography = {
   fontFamily: {
-    regular: 'System', // Could add custom font later
+    regular: 'System',
     medium: 'System',
     bold: 'System',
   },
@@ -80,23 +82,23 @@ export const typography = {
 export const shadows = {
   sm: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   md: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   glow: {
-    shadowColor: '#6C5CE7',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
 };
