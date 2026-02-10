@@ -14,7 +14,7 @@ with patch("config.get_settings") as mock_settings:
         supabase_service_key="mock-key",
         supabase_jwt_secret="",
         gemini_api_key="mock-gemini-key",
-        gemini_model="gemini-2.5-flash-preview",
+        gemini_model="gemini-3-pro-preview",
         app_name="Lumina Test",
         debug=True,
         log_level="WARNING",
