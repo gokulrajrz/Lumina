@@ -1,3 +1,7 @@
+/**
+ * Zodiac constants — symbols, elements, qualities, planet glyphs.
+ */
+
 export const zodiacSigns = {
   Aries: { symbol: '♈', element: 'fire', quality: 'cardinal' },
   Taurus: { symbol: '♉', element: 'earth', quality: 'fixed' },
@@ -27,3 +31,29 @@ export const planetSymbols = {
   'North Node': '☊',
   'South Node': '☋',
 };
+
+// ── Convenience maps used by chart screen ──
+
+/** Sign name → unicode glyph */
+export const ZODIAC_SYMBOLS: Record<string, string> = Object.fromEntries(
+  Object.entries(zodiacSigns).map(([name, { symbol }]) => [name, symbol]),
+);
+
+/** Planet name → unicode glyph */
+export const PLANET_SYMBOLS: Record<string, string> = { ...planetSymbols };
+
+/** Sign name → element */
+export const ELEMENTS: Record<string, string> = Object.fromEntries(
+  Object.entries(zodiacSigns).map(([name, { element }]) => [
+    name,
+    element.charAt(0).toUpperCase() + element.slice(1),
+  ]),
+);
+
+/** Sign name → quality */
+export const QUALITIES: Record<string, string> = Object.fromEntries(
+  Object.entries(zodiacSigns).map(([name, { quality }]) => [
+    name,
+    quality.charAt(0).toUpperCase() + quality.slice(1),
+  ]),
+);

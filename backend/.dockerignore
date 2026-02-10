@@ -1,0 +1,15 @@
+# Docker ignore — keep image small and exclude secrets
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+venv/
+.venv/
+.git/
+.github/
+*.md
+tests/
+pyproject.toml
+Dockerfile
+.dockerignore

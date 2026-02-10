@@ -1,11 +1,102 @@
-import { UserProfile, DailyBriefing, JournalEntry, ChatMessage, CurrentTransits } from '../types';
+/**
+ * API Service — Communicates with the Lumina backend.
+ * All requests include the Supabase auth token for JWT verification.
+ */
 
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
+import { supabase } from './supabase';
+
+const API_BASE = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
+
+class APIError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'APIError';
+    this.status = status;
+  }
+}
+
+/**
+ * Get auth headers with the current Supabase session token.
+ */
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+  } catch (error) {
+    console.warn('Failed to get auth session for API call:', error);
+  }
+
+  return headers;
+}
+
+/**
+ * Base fetch wrapper with auth, error handling, and retry logic.
+ */
+async function fetchAPI<T>(
+  path: string,
+  options: RequestInit = {},
+  retries: number = 1,
+): Promise<T> {
+  const url = `${API_BASE}${path}`;
+  const headers = await getAuthHeaders();
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...headers,
+          ...options.headers,
+        },
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        let message = `API Error: ${response.status}`;
+        try {
+          const parsed = JSON.parse(errorBody);
+          message = parsed.detail || message;
+        } catch {
+          message = errorBody || message;
+        }
+        throw new APIError(message, response.status);
+      }
+
+      return await response.json();
+    } catch (error) {
+      if (error instanceof APIError) throw error;
+
+      // Network error — retry if attempts remain
+      if (attempt < retries) {
+        console.warn(`API request failed (attempt ${attempt + 1}), retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        continue;
+      }
+
+      throw new APIError(
+        error instanceof Error ? error.message : 'Network error',
+        0,
+      );
+    }
+  }
+
+  throw new APIError('Request failed after retries', 0);
+}
+
+// ── User APIs ──
 
 export const api = {
-  // User endpoints
+  /**
+   * Create a new user profile.
+   */
   async createUser(data: {
-    supabase_id?: string;
     display_name: string;
     email?: string;
     birth_date: string;
@@ -14,123 +105,127 @@ export const api = {
     longitude: number;
     city: string;
     timezone_str: string;
-  }): Promise<UserProfile> {
-    const res = await fetch(`${API_URL}/api/users`, {
+  }): Promise<any> {
+    return fetchAPI('/api/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to create user');
-    return res.json();
   },
 
-  async getUser(userId: string): Promise<UserProfile> {
-    const res = await fetch(`${API_URL}/api/users/${userId}`);
-    if (!res.ok) throw new Error('Failed to get user');
-    return res.json();
+  /**
+   * Get the currently authenticated user's profile.
+   */
+  async getCurrentUser(): Promise<any> {
+    return fetchAPI('/api/users/me');
   },
 
-  async getUserBySupabase(supabaseId: string): Promise<UserProfile> {
-    const res = await fetch(`${API_URL}/api/users/by-supabase/${supabaseId}`);
-    if (!res.ok) throw new Error('User not found');
-    return res.json();
+  /**
+   * Get a user by their internal user_id.
+   */
+  async getUser(userId: string): Promise<any> {
+    return fetchAPI(`/api/users/${userId}`);
   },
 
-  // Briefing
-  async getDailyBriefing(userId: string): Promise<DailyBriefing> {
-    const res = await fetch(`${API_URL}/api/briefing/${userId}`);
-    if (!res.ok) throw new Error('Failed to get briefing');
-    return res.json();
+  /**
+   * Get a user by their Supabase auth ID.
+   */
+  async getUserBySupabaseId(supabaseId: string): Promise<any> {
+    return fetchAPI(`/api/users/by-supabase/${supabaseId}`);
   },
 
-  // Transits
-  async getTransits(userId: string): Promise<CurrentTransits> {
-    const res = await fetch(`${API_URL}/api/astrology/transits/${userId}`);
-    if (!res.ok) throw new Error('Failed to get transits');
-    return res.json();
+  // ── Daily Briefing ──
+
+  async getDailyBriefing(userId: string): Promise<any> {
+    return fetchAPI(`/api/briefing/${userId}`);
   },
 
-  // Journal
-  async createJournalEntry(userId: string, data: {
-    content: string;
-    mood: number;
-    tags: string[];
-    prompt: string;
-  }): Promise<JournalEntry> {
-    const res = await fetch(`${API_URL}/api/journal/${userId}`, {
+  // ── Journal ──
+
+  async getJournalEntries(userId: string): Promise<any[]> {
+    return fetchAPI(`/api/journal/${userId}`);
+  },
+
+  async createJournalEntry(
+    userId: string,
+    data: { content: string; mood: number; tags?: string[]; prompt?: string },
+  ): Promise<any> {
+    return fetchAPI(`/api/journal/${userId}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to create entry');
-    return res.json();
   },
 
-  async getJournalEntries(userId: string, limit = 50, skip = 0): Promise<JournalEntry[]> {
-    const res = await fetch(`${API_URL}/api/journal/${userId}?limit=${limit}&skip=${skip}`);
-    if (!res.ok) throw new Error('Failed to get entries');
-    return res.json();
-  },
-
-  async updateJournalEntry(entryId: string, data: {
-    content?: string;
-    mood?: number;
-    tags?: string[];
-  }): Promise<JournalEntry> {
-    const res = await fetch(`${API_URL}/api/journal/entry/${entryId}`, {
+  async updateJournalEntry(
+    entryId: string,
+    data: { content?: string; mood?: number; tags?: string[] },
+  ): Promise<any> {
+    return fetchAPI(`/api/journal/entry/${entryId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to update entry');
-    return res.json();
   },
 
-  async deleteJournalEntry(entryId: string): Promise<void> {
-    const res = await fetch(`${API_URL}/api/journal/entry/${entryId}`, {
+  async deleteJournalEntry(entryId: string): Promise<any> {
+    return fetchAPI(`/api/journal/entry/${entryId}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Failed to delete entry');
   },
 
   async getJournalPrompt(userId: string): Promise<{ prompt: string }> {
-    const res = await fetch(`${API_URL}/api/journal/prompt/${userId}`);
-    if (!res.ok) throw new Error('Failed to get prompt');
-    return res.json();
+    return fetchAPI(`/api/journal/prompt/${userId}`);
   },
 
-  // Chat
-  async sendChatMessage(userId: string, data: {
-    message: string;
-    conversation_id?: string;
-  }): Promise<{
+  // ── Chat ──
+
+  async sendChatMessage(
+    userId: string,
+    message: string,
+    conversationId?: string,
+  ): Promise<{
     conversation_id: string;
-    user_message: ChatMessage;
-    ai_message: ChatMessage;
+    user_message: any;
+    ai_message: any;
   }> {
-    const res = await fetch(`${API_URL}/api/chat/${userId}`, {
+    return fetchAPI(`/api/chat/${userId}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        conversation_id: conversationId,
+      }),
+    });
+  },
+
+  async getChatHistory(conversationId: string): Promise<any[]> {
+    return fetchAPI(`/api/chat/history/${conversationId}`);
+  },
+
+  async getConversations(userId: string): Promise<any[]> {
+    return fetchAPI(`/api/chat/conversations/${userId}`);
+  },
+
+  // ── Astrology ──
+
+  async calculateBirthChart(data: {
+    birth_date: string;
+    birth_time: string;
+    latitude: number;
+    longitude: number;
+    city: string;
+    timezone_str?: string;
+  }): Promise<any> {
+    return fetchAPI('/api/astrology/birth-chart', {
+      method: 'POST',
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Failed to send message');
-    return res.json();
   },
 
-  async getChatHistory(conversationId: string): Promise<ChatMessage[]> {
-    const res = await fetch(`${API_URL}/api/chat/history/${conversationId}`);
-    if (!res.ok) throw new Error('Failed to get history');
-    return res.json();
+  async getTransits(userId: string): Promise<any> {
+    return fetchAPI(`/api/astrology/transits/${userId}`);
   },
 
-  async getConversations(userId: string): Promise<Array<{
-    conversation_id: string;
-    last_message: string;
-    last_at: string;
-    message_count: number;
-  }>> {
-    const res = await fetch(`${API_URL}/api/chat/conversations/${userId}`);
-    if (!res.ok) throw new Error('Failed to get conversations');
-    return res.json();
+  // ── Health ──
+
+  async healthCheck(): Promise<any> {
+    return fetchAPI('/health');
   },
 };
