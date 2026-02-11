@@ -34,22 +34,18 @@ def _decode_supabase_jwt(token: str) -> dict:
     settings = get_settings()
 
     try:
-        # Supabase JWTs use HS256 with the JWT secret
-        if settings.supabase_jwt_secret:
-            payload = jwt.decode(
-                token,
-                settings.supabase_jwt_secret,
-                algorithms=["HS256"],
-                audience="authenticated",
-            )
-        else:
-            # Fallback: decode without verification (development only)
-            logger.warning("JWT secret not configured — decoding without verification (UNSAFE)")
-            payload = jwt.decode(
-                token,
-                options={"verify_signature": False},
-                algorithms=["HS256"],
-            )
+        # Strict verification: Secret MUST be configured
+        if not settings.supabase_jwt_secret:
+            logger.critical("SUPABASE_JWT_SECRET not configured! Cannot verify tokens.")
+            # Fail secure
+            raise HTTPException(status_code=500, detail="Server authentication misconfiguration")
+
+        payload = jwt.decode(
+            token,
+            settings.supabase_jwt_secret,
+            algorithms=["HS256"],
+            audience="authenticated",
+        )
 
         return payload
     except jwt.ExpiredSignatureError:

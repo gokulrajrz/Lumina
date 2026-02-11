@@ -9,6 +9,7 @@ import asyncio
 from typing import Optional
 from google import genai
 from google.genai import types
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from config import get_settings
 
@@ -28,6 +29,11 @@ def _get_client():
     return _genai_client
 
 
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    retry=retry_if_exception_type(RuntimeError)
+)
 async def generate_response(
     system_msg: str, user_msg: str, temperature: float = 0.7
 ) -> str:

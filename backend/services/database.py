@@ -4,6 +4,7 @@ Clean, async-compatible interface — no MongoDB wrapper.
 """
 
 import logging
+import asyncio
 from typing import Optional, List, Dict, Any
 from supabase import create_client, Client
 
@@ -22,6 +23,14 @@ def get_db() -> Client:
         _client = create_client(settings.supabase_url, settings.supabase_service_key)
         logger.info(f"Supabase client initialized for {settings.supabase_url}")
     return _client
+
+
+async def execute_async(query_builder):
+    """
+    Execute Supabase query in a thread pool to avoid blocking the event loop.
+    Required because supabase-py client is synchronous.
+    """
+    return await asyncio.to_thread(query_builder.execute)
 
 
 # ── User Operations ──
@@ -166,25 +175,30 @@ def check_db_health() -> bool:
 # ── Daily Insights ──
 
 
-def get_daily_insight(user_id: str, date: str) -> Optional[Dict[str, Any]]:
-    """Get daily insight for a user on a specific date."""
+async def get_daily_insight(user_id: str, date: str) -> Optional[Dict[str, Any]]:
+    """Get daily insight for a user on a specific date (Async)."""
     db = get_db()
-    result = (
+    
+    query = (
         db.table("daily_insights")
         .select("content")
         .eq("user_id", user_id)
         .eq("date", date)
         .limit(1)
-        .execute()
     )
+    
+    result = await execute_async(query)
     return result.data[0]["content"] if result.data else None
 
 
-def create_daily_insight(user_id: str, date: str, content: Dict[str, Any]) -> Dict[str, Any]:
-    """Store a daily insight."""
+async def create_daily_insight(user_id: str, date: str, content: Dict[str, Any]) -> Dict[str, Any]:
+    """Store a daily insight (Async)."""
     db = get_db()
     data = {"user_id": user_id, "date": date, "content": content}
-    result = db.table("daily_insights").insert(data).execute()
+    
+    query = db.table("daily_insights").insert(data)
+    result = await execute_async(query)
+    
     if not result.data:
         raise Exception("Failed to store daily insight")
     return result.data[0]

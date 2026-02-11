@@ -45,7 +45,7 @@ async def get_daily_briefing(
             raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
 
     # Check cache first
-    cached_insight = db.get_daily_insight(user_id, target_date_str)
+    cached_insight = await db.get_daily_insight(user_id, target_date_str)
     
     birth_chart = user.get("birth_chart", {})
     transits = calculate_current_transits(birth_chart, target_date=target_date)
@@ -75,7 +75,7 @@ async def get_daily_briefing(
 
     # Store for future use
     try:
-        db.create_daily_insight(user_id, target_date_str, briefing)
+        await db.create_daily_insight(user_id, target_date_str, briefing)
     except Exception as e:
         logger.error(f"Failed to cache daily insight: {e}")
         # Continue even if caching fails
