@@ -22,6 +22,7 @@ router = APIRouter(prefix="/api/briefing", tags=["briefing"])
 async def get_daily_briefing(
     request: Request,
     user_id: str,
+    date: str = None,
     current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """Get personalized daily briefing for a user."""
@@ -33,8 +34,26 @@ async def get_daily_briefing(
     if user.get("supabase_id") != current_user.supabase_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
+    target_date = datetime.now(timezone.utc)
+    target_date_str = target_date.strftime("%Y-%m-%d")
+
+    if date:
+        try:
+            target_date = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            target_date_str = date
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+
+    # Check cache first
+    cached_insight = db.get_daily_insight(user_id, target_date_str)
+    
     birth_chart = user.get("birth_chart", {})
-    transits = calculate_current_transits(birth_chart)
+    transits = calculate_current_transits(birth_chart, target_date=target_date)
+
+    if cached_insight:
+        cached_insight["transits"] = transits
+        return cached_insight
+
     planets = birth_chart.get("planets", {})
     sun_sign = planets.get("Sun", {}).get("sign", "Unknown")
     moon_sign = planets.get("Moon", {}).get("sign", "Unknown")
@@ -53,6 +72,13 @@ async def get_daily_briefing(
         moon_phase=transits["moon_phase"],
         transits_summary=transits_summary,
     )
+
+    # Store for future use
+    try:
+        db.create_daily_insight(user_id, target_date_str, briefing)
+    except Exception as e:
+        logger.error(f"Failed to cache daily insight: {e}")
+        # Continue even if caching fails
 
     briefing["transits"] = transits
     return briefing

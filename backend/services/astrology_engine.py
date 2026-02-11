@@ -215,17 +215,21 @@ def calculate_birth_chart(
         raise ValueError(f"Chart calculation failed: {str(e)}")
 
 
-def calculate_current_transits(birth_chart: dict) -> dict:
+def calculate_current_transits(birth_chart: dict, target_date: datetime = None) -> dict:
     """
-    Calculate current planetary transits relative to a birth chart.
+    Calculate planetary transits relative to a birth chart for a specific date.
 
     Args:
         birth_chart: The user's birth chart data.
+        target_date: Optional specific date for calculation (defaults to now).
 
     Returns:
         Current transits including moon sign, phase, and active aspects.
     """
-    now = datetime.now(timezone.utc)
+    now = target_date if target_date else datetime.now(timezone.utc)
+    if not now.tzinfo:
+        now = now.replace(tzinfo=timezone.utc)
+
     jd = swe.julday(now.year, now.month, now.day, now.hour + now.minute / 60.0)
 
     # Current Moon

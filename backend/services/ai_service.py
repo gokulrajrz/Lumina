@@ -118,25 +118,8 @@ Active Transits: {transits_summary}
 Respond with ONLY this JSON structure (no markdown, no code blocks):
 {{"energyRating": 4, "theme": "Brief inspiring theme for today", "energyForecast": {{"morning": "High - good for creative work", "afternoon": "Medium - focus on routine tasks", "evening": "Calm - ideal for reflection"}}, "favors": ["First favored activity", "Second favored activity", "Third favored activity"], "mindful": ["First thing to watch", "Second thing to watch"], "luckyColor": "Soft Blue", "luckyNumber": 7, "journalPrompt": "A reflective question for today?"}}"""
 
-    try:
-        response = await generate_response(system_msg, user_msg)
-        return _parse_json_response(response)
-    except (json.JSONDecodeError, RuntimeError) as e:
-        logger.warning(f"AI briefing parse/generation failed, using fallback: {e}")
-        return {
-            "energyRating": 3,
-            "theme": f"A day of {moon_phase} energy with Moon in {current_moon}",
-            "energyForecast": {
-                "morning": "Good energy for planning",
-                "afternoon": "Steady focus time",
-                "evening": "Wind down and reflect",
-            },
-            "favors": ["Creative projects", "Deep conversations", "Self-care"],
-            "mindful": ["Avoid impulsive decisions", "Take breaks when needed"],
-            "luckyColor": "Violet",
-            "luckyNumber": 7,
-            "journalPrompt": "What patterns are you noticing in your life right now?",
-        }
+    response = await generate_response(system_msg, user_msg)
+    return _parse_json_response(response)
 
 
 async def generate_journal_prompt(
@@ -155,11 +138,8 @@ Moon today: {current_moon} ({moon_phase})
 Transits: {transits_text}
 Return ONLY the question."""
 
-    try:
-        prompt = await generate_response(system_msg, user_msg)
-        return prompt.strip().strip('"').strip("'")
-    except RuntimeError:
-        return "What patterns are you noticing in your life right now?"
+    prompt = await generate_response(system_msg, user_msg)
+    return prompt.strip().strip('"').strip("'")
 
 
 async def generate_chat_response(

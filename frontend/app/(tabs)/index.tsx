@@ -61,10 +61,29 @@ export default function HomeScreen() {
   const router = useRouter();
   const { profile } = useUserStore();
 
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [briefing, setBriefing] = useState<DailyBriefing | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Generate week days centered on selected date
+  const getWeekDays = useCallback(() => {
+    const days = [];
+    for (let i = -3; i <= 3; i++) {
+      const d = new Date(selectedDate);
+      d.setDate(selectedDate.getDate() + i);
+      days.push({
+        dayName: DAYS[d.getDay()],
+        date: d.getDate(),
+        fullDate: d,
+        isSelected: i === 0,
+        isToday: d.toDateString() === new Date().toDateString(),
+      });
+    }
+    return days;
+  }, [selectedDate]);
+
   const weekDays = getWeekDays();
 
   // Header Constants
@@ -118,21 +137,26 @@ export default function HomeScreen() {
   });
 
   const fetchBriefing = useCallback(async () => {
-    // ... (fetch logic same)
-    if (!profile?.user_id) {
-      // ...
-      return;
-    }
+    if (!profile?.user_id) return;
+
+    setLoading(true);
+    setError(null);
     try {
-      // ...
-      const data = await api.getDailyBriefing(profile.user_id);
+      // Use local date string to ensure we fetch the correct day in user's timezone
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+
+      const data = await api.getDailyBriefing(profile.user_id, dateStr);
       setBriefing(data);
     } catch (err) {
-      // ...
+      console.error('Failed to fetch daily briefing:', err);
+      setError('Could not load your cosmic briefing. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [profile?.user_id]);
+  }, [profile?.user_id, selectedDate]);
 
   useEffect(() => {
     fetchBriefing();
@@ -142,6 +166,11 @@ export default function HomeScreen() {
     setRefreshing(true);
     await fetchBriefing();
     setRefreshing(false);
+  };
+
+  const handleDateSelect = (date: Date) => {
+    setSelectedDate(date);
+    // Scroll to top when date changes logic if needed
   };
 
 
@@ -222,13 +251,14 @@ export default function HomeScreen() {
                 key={i}
                 style={styles.dayItem}
                 activeOpacity={0.7}
+                onPress={() => handleDateSelect(day.fullDate)}
               >
-                <View style={[styles.dayCircle, day.isToday && styles.dayCircleActive]}>
-                  <Text style={[styles.dayDate, day.isToday && styles.dayDateActive]}>
+                <View style={[styles.dayCircle, day.isSelected && styles.dayCircleActive]}>
+                  <Text style={[styles.dayDate, day.isSelected && styles.dayDateActive]}>
                     {day.date}
                   </Text>
                 </View>
-                <Text style={[styles.dayName, day.isToday && styles.dayNameActive]}>
+                <Text style={[styles.dayName, day.isSelected && styles.dayNameActive]}>
                   {day.dayName}
                 </Text>
               </TouchableOpacity>

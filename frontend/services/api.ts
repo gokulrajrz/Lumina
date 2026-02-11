@@ -139,8 +139,9 @@ export const api = {
 
   // ── Daily Briefing ──
 
-  async getDailyBriefing(userId: string): Promise<any> {
-    return fetchAPI(`/api/briefing/${userId}`);
+  async getDailyBriefing(userId: string, date?: string): Promise<any> {
+    const url = date ? `/api/briefing/${userId}?date=${date}` : `/api/briefing/${userId}`;
+    return fetchAPI(url);
   },
 
   // ── Journal ──

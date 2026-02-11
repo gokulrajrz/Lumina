@@ -161,3 +161,30 @@ def check_db_health() -> bool:
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
         return False
+
+
+# ── Daily Insights ──
+
+
+def get_daily_insight(user_id: str, date: str) -> Optional[Dict[str, Any]]:
+    """Get daily insight for a user on a specific date."""
+    db = get_db()
+    result = (
+        db.table("daily_insights")
+        .select("content")
+        .eq("user_id", user_id)
+        .eq("date", date)
+        .limit(1)
+        .execute()
+    )
+    return result.data[0]["content"] if result.data else None
+
+
+def create_daily_insight(user_id: str, date: str, content: Dict[str, Any]) -> Dict[str, Any]:
+    """Store a daily insight."""
+    db = get_db()
+    data = {"user_id": user_id, "date": date, "content": content}
+    result = db.table("daily_insights").insert(data).execute()
+    if not result.data:
+        raise Exception("Failed to store daily insight")
+    return result.data[0]
