@@ -34,7 +34,13 @@
           "backgroundColor": "#000"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone to record audio journals."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

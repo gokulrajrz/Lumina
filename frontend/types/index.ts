@@ -42,6 +42,7 @@ export interface JournalEntry {
   mood: 1 | 2 | 3 | 4 | 5;
   tags: string[];
   ai_insight?: string;
+  audio_url?: string;
   transits_snapshot: CurrentTransits;
 }
 

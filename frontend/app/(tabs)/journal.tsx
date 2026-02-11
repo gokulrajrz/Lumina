@@ -11,6 +11,8 @@ import {
   Modal,
   Keyboard,
   TouchableWithoutFeedback,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +23,8 @@ import { JournalSkeleton } from '../../components/ui/SkeletonLoader';
 import { useUserStore } from '../../stores/userStore';
 import { useJournalStore } from '../../stores/journalStore';
 import { api } from '../../services/api';
+import { audioService } from '../../services/audioService';
+import { AudioRecorder } from '../../components/ui/AudioRecorder';
 import { colors, spacing, typography } from '../../constants/theme';
 import { JournalEntry } from '../../types';
 
@@ -32,6 +36,7 @@ export default function JournalScreen() {
   const [newEntryText, setNewEntryText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
+  const [audioUri, setAudioUri] = useState<string | null>(null);
 
   const fetchEntries = useCallback(async () => {
     if (!profile?.user_id) return;
@@ -52,16 +57,18 @@ export default function JournalScreen() {
     if (entry) {
       setEditingEntry(entry);
       setNewEntryText(entry.content);
+      setAudioUri(entry.audio_url || null);
     } else {
       setEditingEntry(null);
       setNewEntryText('');
+      setAudioUri(null);
     }
     setWriting(true);
   };
 
   const handleSaveEntry = async () => {
-    if (!newEntryText.trim()) {
-      Alert.alert('Empty Entry', 'Please write something before saving.');
+    if (!newEntryText.trim() && !audioUri) {
+      Alert.alert('Empty Entry', 'Please write something or record audio before saving.');
       return;
     }
 
@@ -69,18 +76,30 @@ export default function JournalScreen() {
 
     setSubmitting(true);
     try {
+      let uploadedAudioUrl = audioUri;
+
+      // If it's a local file (not already an http URL), upload it
+      if (audioUri && !audioUri.startsWith('http')) {
+        uploadedAudioUrl = await audioService.uploadAudio(audioUri, profile.user_id);
+      }
+
       if (editingEntry) {
-        await updateEntry(editingEntry.entry_id, { content: newEntryText });
+        await updateEntry(editingEntry.entry_id, {
+          content: newEntryText,
+          audio_url: uploadedAudioUrl || undefined
+        });
         Alert.alert('Updated', 'Your entry has been updated.');
       } else {
         await addEntry(profile.user_id, {
           content: newEntryText,
           mood: 3,
           tags: [],
+          audio_url: uploadedAudioUrl || undefined
         });
         Alert.alert('Saved', 'Your cosmic thought has been recorded.');
       }
       setNewEntryText('');
+      setAudioUri(null);
       setEditingEntry(null);
       setWriting(false);
     } catch (error) {
@@ -148,6 +167,12 @@ export default function JournalScreen() {
         </View>
       </View>
       <Text style={styles.entryContent}>{item.content}</Text>
+      {item.audio_url && (
+        <AudioRecorder
+          onRecordingComplete={() => { }}
+          existingAudioUri={item.audio_url}
+        />
+      )}
       {item.ai_insight && (
         <View style={styles.insightContainer}>
           <Text style={styles.insightLabel}>✨ Cosmic Insight</Text>
@@ -203,7 +228,10 @@ export default function JournalScreen() {
 
         <Modal visible={writing} animationType="slide" transparent>
           <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-            <View style={styles.modalContainer}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.modalContainer}
+            >
               <View style={styles.modalHeader}>
                 <TouchableOpacity onPress={() => setWriting(false)}>
                   <Text style={styles.modalCancel}>Cancel</Text>
@@ -234,7 +262,14 @@ export default function JournalScreen() {
                 onChangeText={setNewEntryText}
                 autoFocus
               />
-            </View>
+              <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.lg }}>
+                <AudioRecorder
+                  onRecordingComplete={setAudioUri}
+                  existingAudioUri={audioUri || undefined}
+                  onDeleteAudio={() => setAudioUri(null)}
+                />
+              </View>
+            </KeyboardAvoidingView>
           </TouchableWithoutFeedback>
         </Modal>
       </View>

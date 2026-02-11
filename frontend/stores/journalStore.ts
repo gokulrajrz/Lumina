@@ -18,11 +18,11 @@ interface JournalState {
   loadEntries: (userId: string) => Promise<void>;
   addEntry: (
     userId: string,
-    data: { content: string; mood: number; tags?: string[]; prompt?: string },
+    data: { content: string; mood: number; tags?: string[]; prompt?: string; audio_url?: string },
   ) => Promise<void>;
   updateEntry: (
     entryId: string,
-    data: { content?: string; mood?: number; tags?: string[] },
+    data: { content?: string; mood?: number; tags?: string[]; audio_url?: string },
   ) => Promise<void>;
   deleteEntry: (entryId: string) => Promise<void>;
   selectEntry: (entry: JournalEntry | null) => void;
