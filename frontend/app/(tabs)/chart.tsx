@@ -1,3 +1,8 @@
+/**
+ * Chart Screen — Natal chart display with matte dark aesthetic.
+ * Layout pattern matches Home & Journal screens.
+ */
+
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
@@ -8,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../components/ui/Card';
 import { GradientBackground } from '../../components/ui/Layout/GradientBackground';
 import { BriefingSkeleton } from '../../components/ui/SkeletonLoader';
@@ -16,6 +22,14 @@ import { api } from '../../services/api';
 import { colors, spacing, typography } from '../../constants/theme';
 import { BirthChart } from '../../types';
 import { ZODIAC_SYMBOLS, PLANET_SYMBOLS, ELEMENTS, QUALITIES } from '../../constants/zodiac';
+
+// ── Element Colors ──────────────────────────────────────────────────────
+const ELEMENT_COLORS: Record<string, string> = {
+  fire: '#FF6B6B',
+  earth: '#4ECDC4',
+  air: '#45B7D1',
+  water: '#5F27CD',
+};
 
 export default function ChartScreen() {
   const { profile, setProfile } = useUserStore();
@@ -49,51 +63,56 @@ export default function ChartScreen() {
     setRefreshing(false);
   };
 
-  const getElementColor = (element: string) => {
-    switch (element.toLowerCase()) {
-      case 'fire': return '#FF6B6B';
-      case 'earth': return '#4ECDC4';
-      case 'air': return '#45B7D1';
-      case 'water': return '#5F27CD';
-      default: return colors.textSecondary;
-    }
-  };
+  const getElementColor = (element: string) =>
+    ELEMENT_COLORS[element.toLowerCase()] || colors.textSecondary;
 
+  // ── Main Render ──────────────────────────────────────────────────────
   return (
     <GradientBackground>
       <StatusBar style="light" />
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.primary}
-          />
-        }
-      >
-        <Text style={styles.title}>Natal Chart</Text>
-        <Text style={styles.subtitle}>
-          {profile?.display_name}'s Cosmic Blueprint
-        </Text>
-
-        {loading ? (
-          <BriefingSkeleton />
-        ) : chart ? (
+      <View style={styles.container}>
+        {/* Header — left-aligned, matching Home & Journal */}
+        <View style={styles.header}>
           <View>
-            {/* Core Planets */}
+            <Text style={styles.title}>Natal Chart</Text>
+            <Text style={styles.subtitle}>
+              {profile?.display_name ? `${profile.display_name}'s Cosmic Blueprint` : 'Your Cosmic Blueprint'}
+            </Text>
+          </View>
+          <View style={styles.headerIcon}>
+            <Ionicons name="planet-outline" size={22} color={colors.textTertiary} />
+          </View>
+        </View>
+
+        {/* Content */}
+        {loading ? (
+          <View style={styles.skeletonWrap}>
+            <BriefingSkeleton />
+          </View>
+        ) : chart ? (
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={colors.textPrimary}
+              />
+            }
+            showsVerticalScrollIndicator={false}
+          >
+            {/* ── Big Three ──────────────────────────────────────────── */}
             <Card style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>The Big Three</Text>
               <View style={styles.bigThreeContainer}>
                 <View style={styles.bigThreeItem}>
-                  <Text style={styles.planetSymbol}>☉</Text>
+                  <Text style={styles.bigThreeSymbol}>☉</Text>
                   <Text style={styles.bigThreeLabel}>Sun</Text>
                   <Text style={styles.bigThreeValue}>{chart.planets.Sun.sign}</Text>
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.bigThreeItem}>
-                  <Text style={styles.planetSymbol}>☽</Text>
+                  <Text style={styles.bigThreeSymbol}>☽</Text>
                   <Text style={styles.bigThreeLabel}>Moon</Text>
                   <Text style={styles.bigThreeValue}>{chart.planets.Moon.sign}</Text>
                 </View>
@@ -101,7 +120,7 @@ export default function ChartScreen() {
                   <>
                     <View style={styles.divider} />
                     <View style={styles.bigThreeItem}>
-                      <Text style={styles.planetSymbol}>↑</Text>
+                      <Text style={styles.bigThreeSymbol}>↑</Text>
                       <Text style={styles.bigThreeLabel}>Rising</Text>
                       <Text style={styles.bigThreeValue}>{chart.ascendant.sign}</Text>
                     </View>
@@ -110,13 +129,12 @@ export default function ChartScreen() {
               </View>
             </Card>
 
-            {/* Planetary Placements */}
+            {/* ── Planetary Placements ────────────────────────────────── */}
             <Card style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Planetary Placements</Text>
               {Object.entries(chart.planets).map(([planet, data]: [string, any]) => {
                 if (planet === 'Ascendant') return null;
                 const element = ELEMENTS[data.sign] || 'Unknown';
-                const quality = QUALITIES[data.sign] || 'Unknown';
 
                 return (
                   <View key={planet} style={styles.planetRow}>
@@ -133,22 +151,26 @@ export default function ChartScreen() {
                         </Text>
                         <Text style={styles.signName}>{data.sign}</Text>
                       </View>
-                      <View style={styles.houseBadge}>
-                        <Text style={styles.houseText}>
-                          {data.house ? `House ${data.house}` : ''} {data.retrograde ? ' (Rx)' : ''}
-                        </Text>
-                      </View>
+                      {(data.house || data.retrograde) && (
+                        <View style={styles.houseBadge}>
+                          <Text style={styles.houseText}>
+                            {data.house ? `H${data.house}` : ''}{data.retrograde ? ' Rx' : ''}
+                          </Text>
+                        </View>
+                      )}
                     </View>
-                    <View style={[styles.elementDot, { backgroundColor: getElementColor(element) }]} />
+                    <View
+                      style={[styles.elementDot, { backgroundColor: getElementColor(element) }]}
+                    />
                   </View>
                 );
               })}
             </Card>
 
-            {/* Houses (if available) */}
+            {/* ── Houses ─────────────────────────────────────────────── */}
             {chart.houses && (
               <Card style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>House Cups</Text>
+                <Text style={styles.sectionTitle}>House Cusps</Text>
                 {chart.houses.map((data) => (
                   <View key={data.house} style={styles.houseRow}>
                     <Text style={styles.houseNumber}>House {data.house}</Text>
@@ -158,52 +180,79 @@ export default function ChartScreen() {
                 ))}
               </Card>
             )}
-          </View>
+          </ScrollView>
         ) : (
-          <Card>
-            <Text style={styles.errorText}>
-              Chart data unavailable. Please verify your birth details in settings.
-            </Text>
-          </Card>
+          <View style={styles.emptyContainer}>
+            <Card>
+              <View style={styles.emptyContent}>
+                <Ionicons name="telescope-outline" size={40} color={colors.textTertiary} />
+                <Text style={styles.emptyTitle}>No Chart Available</Text>
+                <Text style={styles.emptyText}>
+                  Please verify your birth details in settings to generate your natal chart.
+                </Text>
+              </View>
+            </Card>
+          </View>
         )}
-      </ScrollView>
+      </View>
     </GradientBackground>
   );
 }
 
+// ── Styles ─────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
+  // ─ Screen ─
   container: {
     flex: 1,
   },
-  content: {
-    padding: spacing.lg,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
     paddingTop: spacing.xxl * 1.5,
-    paddingBottom: spacing.xxl * 3,
+    paddingBottom: spacing.md,
   },
   title: {
     fontSize: typography.fontSize.xxl,
     fontWeight: typography.fontWeight.bold,
     color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: 4,
   },
   subtitle: {
     fontSize: typography.fontSize.sm,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.xl,
+    color: colors.textTertiary,
+    marginTop: 2,
   },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  skeletonWrap: {
+    paddingHorizontal: spacing.lg,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: 130,
+  },
+
+  // ─ Section Cards ─
   sectionCard: {
     marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: typography.fontSize.sm,
+    fontSize: 10,
     fontWeight: typography.fontWeight.bold,
     color: colors.textTertiary,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
     marginBottom: spacing.md,
   },
+
+  // ─ Big Three ─
   bigThreeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -212,17 +261,19 @@ const styles = StyleSheet.create({
   },
   bigThreeItem: {
     alignItems: 'center',
+    flex: 1,
   },
-  planetSymbol: {
-    fontSize: 24,
-    color: colors.primary,
-    marginBottom: 4,
+  bigThreeSymbol: {
+    fontSize: 28,
+    color: colors.textPrimary,
+    marginBottom: 6,
   },
   bigThreeLabel: {
-    fontSize: typography.fontSize.xs,
-    color: colors.textSecondary,
-    marginBottom: 2,
+    fontSize: 10,
+    color: colors.textTertiary,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   bigThreeValue: {
     fontSize: typography.fontSize.lg,
@@ -231,16 +282,18 @@ const styles = StyleSheet.create({
   },
   divider: {
     width: 1,
-    height: 40,
+    height: 48,
     backgroundColor: colors.border,
   },
+
+  // ─ Planet Rows ─
   planetRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
   },
   planetInfo: {
     flexDirection: 'row',
@@ -249,13 +302,13 @@ const styles = StyleSheet.create({
   },
   planetSymbolText: {
     fontSize: 16,
-    color: colors.primary,
+    color: colors.textSecondary,
     marginRight: spacing.sm,
-    width: 20,
+    width: 22,
     textAlign: 'center',
   },
   planetName: {
-    fontSize: typography.fontSize.base,
+    fontSize: typography.fontSize.sm,
     color: colors.textPrimary,
     fontWeight: typography.fontWeight.medium,
   },
@@ -263,30 +316,31 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
   },
   signBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: spacing.md,
+    gap: 4,
   },
   signSymbol: {
     fontSize: 14,
-    color: colors.textSecondary,
-    marginRight: 4,
+    color: colors.textTertiary,
   },
   signName: {
-    fontSize: typography.fontSize.base,
+    fontSize: typography.fontSize.sm,
     color: colors.textPrimary,
   },
   houseBadge: {
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
   },
   houseText: {
     fontSize: 10,
-    color: colors.textSecondary,
+    color: colors.textTertiary,
+    fontWeight: typography.fontWeight.medium,
   },
   elementDot: {
     width: 8,
@@ -294,20 +348,24 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginLeft: spacing.sm,
   },
+
+  // ─ House Rows ─
   houseRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    alignItems: 'center',
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
   },
   houseNumber: {
     fontSize: typography.fontSize.sm,
-    color: colors.textSecondary,
+    color: colors.textTertiary,
     width: 80,
+    fontWeight: typography.fontWeight.medium,
   },
   houseSign: {
-    fontSize: typography.fontSize.base,
+    fontSize: typography.fontSize.sm,
     color: colors.textPrimary,
     fontWeight: typography.fontWeight.medium,
     flex: 1,
@@ -316,8 +374,25 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.xs,
     color: colors.textTertiary,
   },
-  errorText: {
+
+  // ─ Empty State ─
+  emptyContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+  },
+  emptyContent: {
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  emptyTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.textPrimary,
+  },
+  emptyText: {
+    fontSize: typography.fontSize.sm,
     color: colors.textSecondary,
     textAlign: 'center',
+    lineHeight: 20,
   },
 });
