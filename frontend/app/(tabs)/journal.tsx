@@ -19,31 +19,24 @@ import { Button } from '../../components/ui/Button';
 import { GradientBackground } from '../../components/ui/Layout/GradientBackground';
 import { JournalSkeleton } from '../../components/ui/SkeletonLoader';
 import { useUserStore } from '../../stores/userStore';
+import { useJournalStore } from '../../stores/journalStore';
 import { api } from '../../services/api';
 import { colors, spacing, typography } from '../../constants/theme';
 import { JournalEntry } from '../../types';
 
 export default function JournalScreen() {
   const { profile } = useUserStore();
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { entries, loadEntries, addEntry, updateEntry, deleteEntry, isLoading } = useJournalStore();
   const [refreshing, setRefreshing] = useState(false);
   const [writing, setWriting] = useState(false);
   const [newEntryText, setNewEntryText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
 
   const fetchEntries = useCallback(async () => {
     if (!profile?.user_id) return;
-    try {
-      const data = await api.getJournalEntries(profile.user_id);
-      setEntries(data);
-    } catch (error) {
-      console.error('Failed to fetch journal entries:', error);
-      Alert.alert('Error', 'Could not load journal entries.');
-    } finally {
-      setLoading(false);
-    }
-  }, [profile?.user_id]);
+    await loadEntries(profile.user_id);
+  }, [profile?.user_id, loadEntries]);
 
   useEffect(() => {
     fetchEntries();
@@ -55,7 +48,18 @@ export default function JournalScreen() {
     setRefreshing(false);
   };
 
-  const handleCreateEntry = async () => {
+  const openEditor = (entry?: JournalEntry) => {
+    if (entry) {
+      setEditingEntry(entry);
+      setNewEntryText(entry.content);
+    } else {
+      setEditingEntry(null);
+      setNewEntryText('');
+    }
+    setWriting(true);
+  };
+
+  const handleSaveEntry = async () => {
     if (!newEntryText.trim()) {
       Alert.alert('Empty Entry', 'Please write something before saving.');
       return;
@@ -65,16 +69,20 @@ export default function JournalScreen() {
 
     setSubmitting(true);
     try {
-      const newEntry = await api.createJournalEntry(profile.user_id, {
-        content: newEntryText,
-        mood: 3,
-        tags: [],
-      });
-
-      setEntries([newEntry, ...entries]);
+      if (editingEntry) {
+        await updateEntry(editingEntry.entry_id, { content: newEntryText });
+        Alert.alert('Updated', 'Your entry has been updated.');
+      } else {
+        await addEntry(profile.user_id, {
+          content: newEntryText,
+          mood: 3,
+          tags: [],
+        });
+        Alert.alert('Saved', 'Your cosmic thought has been recorded.');
+      }
       setNewEntryText('');
+      setEditingEntry(null);
       setWriting(false);
-      Alert.alert('Saved', 'Your cosmic thought has been recorded.');
     } catch (error) {
       console.error('Failed to save entry:', error);
       Alert.alert('Error', 'Could not save your entry. Please try again.');
@@ -83,22 +91,61 @@ export default function JournalScreen() {
     }
   };
 
+  const handleDelete = (entry: JournalEntry) => {
+    Alert.alert(
+      'Delete Entry',
+      'Are you sure you want to delete this specific cosmic memory?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteEntry(entry.entry_id);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete entry.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderItem = ({ item }: { item: JournalEntry }) => (
     <Card style={styles.entryCard}>
       <View style={styles.entryHeader}>
-        <Text style={styles.entryDate}>
-          {new Date(item.created_at).toLocaleDateString(undefined, {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-          })}
-        </Text>
-        <Text style={styles.entryTime}>
-          {new Date(item.created_at).toLocaleTimeString(undefined, {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </Text>
+        <View>
+          <Text style={styles.entryDate}>
+            {new Date(item.created_at).toLocaleDateString(undefined, {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+            })}
+          </Text>
+          <Text style={styles.entryTime}>
+            {new Date(item.created_at).toLocaleTimeString(undefined, {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </Text>
+        </View>
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            onPress={() => openEditor(item)}
+            style={styles.actionButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="pencil-outline" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => handleDelete(item)}
+            style={styles.actionButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="trash-outline" size={20} color={colors.error} />
+          </TouchableOpacity>
+        </View>
       </View>
       <Text style={styles.entryContent}>{item.content}</Text>
       {item.ai_insight && (
@@ -124,7 +171,7 @@ export default function JournalScreen() {
           </TouchableOpacity>
         </View>
 
-        {loading ? (
+        {isLoading ? (
           <JournalSkeleton />
         ) : (
           <FlatList
@@ -146,7 +193,7 @@ export default function JournalScreen() {
                 </Text>
                 <Button
                   title="Write First Entry"
-                  onPress={() => setWriting(true)}
+                  onPress={() => openEditor()}
                   style={styles.emptyButton}
                 />
               </View>
@@ -162,13 +209,15 @@ export default function JournalScreen() {
                   <Text style={styles.modalCancel}>Cancel</Text>
                 </TouchableOpacity>
                 <View style={styles.titleRow}>
-                  <Text style={styles.modalTitle}>New Entry</Text>
+                  <Text style={styles.modalTitle}>
+                    {editingEntry ? 'Edit Entry' : 'New Entry'}
+                  </Text>
                   <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.headerDismiss}>
                     <Ionicons name="chevron-down-circle-outline" size={20} color={colors.textTertiary} />
                   </TouchableOpacity>
                 </View>
                 <TouchableOpacity
-                  onPress={handleCreateEntry}
+                  onPress={handleSaveEntry}
                   disabled={submitting}
                 >
                   <Text style={[styles.modalSave, submitting && styles.disabledText]}>
@@ -229,6 +278,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
+    alignItems: 'flex-start',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  actionButton: {
+    padding: 4,
   },
   entryDate: {
     fontSize: typography.fontSize.sm,
