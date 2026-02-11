@@ -4,12 +4,15 @@ Chat routes — AI-powered astrology chat with conversation history.
 
 import logging
 import uuid
+import asyncio
+from typing import List
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, Request
 
-from middleware.auth import get_current_user, AuthenticatedUser
+from middleware.auth import get_current_user, AuthenticatedUser, verify_user_ownership
 from middleware.rate_limit import limiter
-from models.schemas import ChatMessageInput
+from models.schemas import ChatMessageInput, ChatInteractionResponse, ChatMessageResponse, ConversationResponse
+from config import get_settings
 from services import database as db
 from services.astrology_engine import calculate_current_transits
 from services import ai_service
@@ -19,8 +22,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 
-@router.post("/{user_id}")
-@limiter.limit("10/minute")
+@router.post("/{user_id}", response_model=ChatInteractionResponse)
+@limiter.limit(get_settings().rate_limit_ai)
 async def chat_with_ai(
     request: Request,
     user_id: str,
@@ -28,19 +31,15 @@ async def chat_with_ai(
     current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """Send a message to Lumina AI and get a response."""
-    user = db.get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    if user.get("supabase_id") != current_user.supabase_id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    user = await verify_user_ownership(user_id, current_user)
 
     conv_id = data.conversation_id or str(uuid.uuid4())
     birth_chart = user.get("birth_chart", {})
-    transits = calculate_current_transits(birth_chart)
+    transits = await asyncio.to_thread(calculate_current_transits, birth_chart)
     planets = birth_chart.get("planets", {})
 
     # Get recent conversation history
-    history = db.get_chat_messages(conv_id, limit=10)
+    history = await db.get_chat_messages(conv_id, limit=10)
     history_text = "\n".join([
         f"{m['role']}: {m['content']}" for m in history[-6:]
     ])
@@ -60,7 +59,7 @@ async def chat_with_ai(
         "saved": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    db.create_chat_message(user_msg_doc)
+    await db.create_chat_message(user_msg_doc)
 
     # Generate AI response
     try:
@@ -87,7 +86,7 @@ async def chat_with_ai(
         "saved": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    db.create_chat_message(ai_msg_doc)
+    await db.create_chat_message(ai_msg_doc)
 
     return {
         "conversation_id": conv_id,
@@ -96,37 +95,31 @@ async def chat_with_ai(
     }
 
 
-@router.get("/history/{conversation_id}")
+@router.get("/history/{conversation_id}", response_model=List[ChatMessageResponse])
 async def get_chat_history(
     conversation_id: str,
     current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """Get chat message history for a conversation."""
-    messages = db.get_chat_messages(conversation_id, limit=100)
+    messages = await db.get_chat_messages(conversation_id, limit=100)
 
     # Verify the requesting user owns these messages
     if messages:
         user_id = messages[0].get("user_id")
-        user = db.get_user_by_id(user_id)
-        if not user or user.get("supabase_id") != current_user.supabase_id:
-            raise HTTPException(status_code=403, detail="Access denied")
+        await verify_user_ownership(user_id, current_user)
 
     return messages
 
 
-@router.get("/conversations/{user_id}")
+@router.get("/conversations/{user_id}", response_model=List[ConversationResponse])
 async def get_conversations(
     user_id: str,
     current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """Get all conversations for a user."""
-    user = db.get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    if user.get("supabase_id") != current_user.supabase_id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    await verify_user_ownership(user_id, current_user)
 
-    convos = db.get_user_conversations(user_id)
+    convos = await db.get_user_conversations(user_id)
     return [
         {
             "conversation_id": c.get("conversation_id"),

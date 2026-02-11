@@ -7,11 +7,16 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Any
 import swisseph as swe
+import threading
 
 logger = logging.getLogger(__name__)
 
+# Thread-safety lock for Swiss Ephemeris calls
+_swe_lock = threading.Lock()
+
 # Initialize Swiss Ephemeris
-swe.set_ephe_path(None)  # Use built-in ephemeris
+with _swe_lock:
+    swe.set_ephe_path(None)  # Use built-in ephemeris
 
 # ── Constants ──
 
@@ -54,7 +59,8 @@ def get_zodiac_sign(longitude: float) -> str:
 
 def _calculate_planet_position(jd: float, planet_id: int) -> dict:
     """Calculate position for a single planet."""
-    result = swe.calc_ut(jd, planet_id)
+    with _swe_lock:
+        result = swe.calc_ut(jd, planet_id)
     lon_val = result[0][0]
     speed = result[0][3] if len(result[0]) > 3 else 0
     return {
@@ -131,7 +137,8 @@ def calculate_birth_chart(
         time_parts = birth_time.split(":")
         hours = int(time_parts[0]) + int(time_parts[1]) / 60.0
 
-        jd = swe.julday(year, month, day, hours)
+        with _swe_lock:
+            jd = swe.julday(year, month, day, hours)
 
         # Calculate planet positions
         planets = {}
@@ -167,7 +174,8 @@ def calculate_birth_chart(
         mc_lon = 0.0
 
         try:
-            cusps, ascmc = swe.houses(jd, lat, lon, b"P")
+            with _swe_lock:
+                cusps, ascmc = swe.houses(jd, lat, lon, b"P")
             ascendant_lon = ascmc[0]
             mc_lon = ascmc[1]
 
@@ -230,15 +238,18 @@ def calculate_current_transits(birth_chart: dict, target_date: datetime = None) 
     if not now.tzinfo:
         now = now.replace(tzinfo=timezone.utc)
 
-    jd = swe.julday(now.year, now.month, now.day, now.hour + now.minute / 60.0)
+    with _swe_lock:
+        jd = swe.julday(now.year, now.month, now.day, now.hour + now.minute / 60.0)
 
     # Current Moon
-    moon_result = swe.calc_ut(jd, swe.MOON)
+    with _swe_lock:
+        moon_result = swe.calc_ut(jd, swe.MOON)
     moon_lon = moon_result[0][0]
     moon_sign = get_zodiac_sign(moon_lon)
 
     # Moon phase
-    sun_result = swe.calc_ut(jd, swe.SUN)
+    with _swe_lock:
+        sun_result = swe.calc_ut(jd, swe.SUN)
     sun_lon = sun_result[0][0]
     phase_angle = (moon_lon - sun_lon) % 360
     phase_idx = int(phase_angle / 45) % 8
@@ -249,7 +260,8 @@ def calculate_current_transits(birth_chart: dict, target_date: datetime = None) 
     current_positions = {}
     for name in transit_planet_names:
         pid = PLANET_IDS[name]
-        result = swe.calc_ut(jd, pid)
+        with _swe_lock:
+            result = swe.calc_ut(jd, pid)
         current_positions[name] = result[0][0]
 
     # Find active transits to natal planets

@@ -55,6 +55,7 @@ def _decode_supabase_jwt(token: str) -> dict:
 
 
 async def get_current_user(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> AuthenticatedUser:
     """
@@ -73,14 +74,19 @@ async def get_current_user(
     if not supabase_id:
         raise HTTPException(status_code=401, detail="Token missing user ID (sub)")
 
-    return AuthenticatedUser(
+    user = AuthenticatedUser(
         supabase_id=supabase_id,
         email=payload.get("email"),
         role=payload.get("role", "authenticated"),
     )
+    
+    # Store in request state for middleware access (logging, etc.)
+    request.state.user = user
+    return user
 
 
 async def get_optional_user(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> Optional[AuthenticatedUser]:
     """
@@ -91,6 +97,25 @@ async def get_optional_user(
         return None
 
     try:
-        return await get_current_user(credentials)
+        return await get_current_user(request, credentials)
     except HTTPException:
         return None
+async def verify_user_ownership(user_id: str, current_user: AuthenticatedUser) -> dict:
+    """
+    Centralized utility to verify that a requested resource (by user_id)
+    belongs to the current authenticated user.
+    
+    Returns the user document if verified, else raises HTTPException.
+    """
+    from services import database as db
+    user = await db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    if user.get("supabase_id") != current_user.supabase_id:
+        logger.warning(
+            f"Access denied: user {current_user.supabase_id} attempted to access user_id {user_id}"
+        )
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    return user

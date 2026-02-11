@@ -3,7 +3,7 @@ Application configuration with validation using pydantic-settings.
 All environment variables are validated at startup.
 """
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, field_validator
 from functools import lru_cache
 from typing import Optional
@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # Gemini AI
     gemini_api_key: str = Field(..., description="Google Gemini API key")
     gemini_model: str = Field(
-        default="gemini-3-pro-preview",
+        default="gemini-1.5-flash",
         description="Gemini model to use"
     )
 
@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", description="Logging level")
 
     # CORS
-    cors_origins: str = Field(
+    cors_origins: str | list[str] = Field(
         default="http://localhost:8081,http://localhost:19006",
         description="Comma-separated allowed CORS origins"
     )
@@ -41,29 +41,39 @@ class Settings(BaseSettings):
     # Rate limiting
     rate_limit_ai: str = Field(
         default="10/minute",
-        description="Rate limit for AI endpoints (requests/period)"
+        description="Rate limit for AI generation"
+    )
+    rate_limit_journal: str = Field(
+        default="30/minute",
+        description="Rate limit for journal creation"
+    )
+    rate_limit_user: str = Field(
+        default="5/minute",
+        description="Rate limit for user profile creation"
     )
     rate_limit_default: str = Field(
         default="60/minute",
-        description="Default rate limit for all endpoints"
+        description="Default rate limit"
     )
 
     @field_validator("cors_origins")
     @classmethod
-    def parse_cors_origins(cls, v: str) -> str:
-        # Just validate it's a non-empty string; parsing happens at usage
-        if not v.strip():
-            raise ValueError("CORS origins cannot be empty")
-        return v
+    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
+        if isinstance(v, list):
+            return v
+        if not v or not v.strip():
+            return ["http://localhost:8081", "http://localhost:19006"]
+        return [origin.strip() for origin in v.split(",") if origin.strip()]
 
     def get_cors_origins(self) -> list[str]:
-        """Parse comma-separated CORS origins into list."""
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        """Return the pre-parsed CORS origins."""
+        return self.cors_origins
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False
+    )
 
 
 @lru_cache()

@@ -4,10 +4,13 @@ Daily briefing routes — AI-generated cosmic guidance.
 
 import logging
 from datetime import datetime, timezone
+import asyncio
 from fastapi import APIRouter, HTTPException, Depends, Request
 
-from middleware.auth import get_current_user, AuthenticatedUser
+from middleware.auth import get_current_user, AuthenticatedUser, verify_user_ownership
 from middleware.rate_limit import limiter
+from models.schemas import DailyBriefingResponse
+from config import get_settings
 from services import database as db
 from services.astrology_engine import calculate_current_transits
 from services import ai_service
@@ -17,8 +20,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/briefing", tags=["briefing"])
 
 
-@router.get("/{user_id}")
-@limiter.limit("10/minute")
+@router.get("/{user_id}", response_model=DailyBriefingResponse)
+@limiter.limit(get_settings().rate_limit_ai)
 async def get_daily_briefing(
     request: Request,
     user_id: str,
@@ -26,13 +29,7 @@ async def get_daily_briefing(
     current_user: AuthenticatedUser = Depends(get_current_user),
 ):
     """Get personalized daily briefing for a user."""
-    user = db.get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Authorization check
-    if user.get("supabase_id") != current_user.supabase_id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    user = await verify_user_ownership(user_id, current_user)
 
     target_date = datetime.now(timezone.utc)
     target_date_str = target_date.strftime("%Y-%m-%d")
@@ -48,7 +45,7 @@ async def get_daily_briefing(
     cached_insight = await db.get_daily_insight(user_id, target_date_str)
     
     birth_chart = user.get("birth_chart", {})
-    transits = calculate_current_transits(birth_chart, target_date=target_date)
+    transits = await asyncio.to_thread(calculate_current_transits, birth_chart, target_date=target_date)
 
     if cached_insight:
         cached_insight["transits"] = transits
