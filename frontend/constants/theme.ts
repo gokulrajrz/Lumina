@@ -7,12 +7,6 @@ export const colors = {
 
   // Brand
   primary: '#FFFFFF',
-  primaryDark: '#E0E0E0',
-  primaryLight: '#FFFFFF',
-
-
-
-  accent: '#FFFFFF',
 
   // Text
   textPrimary: '#FFFFFF',
@@ -23,13 +17,6 @@ export const colors = {
   error: '#FF4D4D',
   success: '#4ADE80',
   info: '#60A5FA',
-
-  // Moods
-  mood1: '#2A2A2A',
-  mood2: '#444444',
-  mood3: '#666666',
-  mood4: '#60A5FA',
-  mood5: '#FBBF24',
 
   // Borders & Shadows (minimal for matte)
   border: '#2A2A2A',

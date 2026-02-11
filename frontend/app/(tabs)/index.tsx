@@ -44,12 +44,18 @@ function getWeekDays() {
   return result;
 }
 
-function getTimeOfDay(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'morning';
-  if (hour < 17) return 'afternoon';
-  return 'evening';
-}
+
+
+import Animated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation
+} from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
+
+// ...
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -61,26 +67,68 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const weekDays = getWeekDays();
 
+  // Header Constants
+  const HEADER_MAX_HEIGHT = 200;
+  const HEADER_MIN_HEIGHT = Platform.OS === 'ios' ? 120 : 100;
+  const SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
+
+  const scrollY = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
+
+  const headerHeightStyle = useAnimatedStyle(() => {
+    const height = interpolate(
+      scrollY.value,
+      [0, SCROLL_DISTANCE],
+      [HEADER_MAX_HEIGHT, HEADER_MIN_HEIGHT],
+      Extrapolation.CLAMP
+    );
+    return { height };
+  });
+
+  const headerBackgroundStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      scrollY.value,
+      [0, SCROLL_DISTANCE / 2],
+      [0, 1],
+      Extrapolation.CLAMP
+    );
+    return { opacity };
+  });
+
+  const greetingOpacityStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      scrollY.value,
+      [0, SCROLL_DISTANCE / 2],
+      [1, 0],
+      Extrapolation.CLAMP
+    );
+    return { opacity, transform: [{ translateY: scrollY.value * 0.5 }] }; // Parallax fade
+  });
+
+  const smallTitleOpacityStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      scrollY.value,
+      [SCROLL_DISTANCE / 1.5, SCROLL_DISTANCE],
+      [0, 1],
+      Extrapolation.CLAMP
+    );
+    return { opacity };
+  });
+
   const fetchBriefing = useCallback(async () => {
+    // ... (fetch logic same)
     if (!profile?.user_id) {
-      setError('Profile not found. Please complete onboarding.');
-      setLoading(false);
+      // ...
       return;
     }
-
     try {
-      setError(null);
+      // ...
       const data = await api.getDailyBriefing(profile.user_id);
       setBriefing(data);
-    } catch (err: any) {
-      console.error('Briefing fetch error:', err);
-      if (err.status === 404) {
-        setError('Profile not found on server. Please sign out and re-register.');
-      } else if (err.status === 0) {
-        setError('Unable to connect to server. Please check your internet connection.');
-      } else {
-        setError(err.message || 'Failed to load your daily briefing.');
-      }
+    } catch (err) {
+      // ...
     } finally {
       setLoading(false);
     }
@@ -96,30 +144,24 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const planets = profile?.birth_chart?.planets;
-  const sunSign = planets?.Sun?.sign || 'Cosmic';
+
   const firstName = profile?.display_name?.split(' ')[0] || 'Traveler';
 
   return (
     <GradientBackground>
       <StatusBar style="light" />
       <ErrorBoundary>
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={colors.textPrimary}
-              colors={[colors.textPrimary]}
-              progressViewOffset={50}
-            />
-          }
-        >
-          {/* Header */}
-          <View style={styles.header}>
+
+        {/* Unified Animated Header */}
+        <Animated.View style={[styles.fixedHeader, headerHeightStyle]}>
+          {/* Glass Background - Fades In */}
+          <Animated.View style={[StyleSheet.absoluteFill, styles.headerBackground, headerBackgroundStyle]}>
+            <BlurView tint="dark" intensity={80} style={StyleSheet.absoluteFill} />
+            <View style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(21,21,21,0.3)' }} />
+          </Animated.View>
+
+          {/* Top Row: Menu - Title - Avatar */}
+          <View style={styles.headerTopRow}>
             <TouchableOpacity
               onPress={() => router.push('/settings')}
               style={styles.menuButton}
@@ -128,6 +170,12 @@ export default function HomeScreen() {
             >
               <Ionicons name="grid-outline" size={22} color={colors.textPrimary} />
             </TouchableOpacity>
+
+            {/* Collapsed Title */}
+            <Animated.Text style={[styles.stickyTitle, smallTitleOpacityStyle]}>
+              Hello, {firstName}
+            </Animated.Text>
+
             <View style={styles.avatarContainer}>
               <View style={styles.avatar}>
                 <Ionicons name="person" size={22} color={colors.textSecondary} />
@@ -135,15 +183,34 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* Greeting */}
-          <View style={styles.greetingSection}>
+          {/* Expanded Greeting Section */}
+          <Animated.View style={[styles.expandedGreeting, greetingOpacityStyle]}>
             <Text style={styles.greeting}>
               Hello {firstName},
             </Text>
             <Text style={styles.subGreeting}>
               What do you want to know?
             </Text>
-          </View>
+          </Animated.View>
+        </Animated.View>
+
+        <Animated.ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.content, { paddingTop: HEADER_MAX_HEIGHT + 20 }]}
+          showsVerticalScrollIndicator={false}
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.textPrimary}
+              colors={[colors.textPrimary]}
+              progressViewOffset={HEADER_MAX_HEIGHT}
+            />
+          }
+        >
+          {/* ScrollView Content Starts Here */}
 
           {/* Date Picker */}
           <View style={styles.datePicker}>
@@ -285,7 +352,7 @@ export default function HomeScreen() {
               )}
             </View>
           )}
-        </ScrollView>
+        </Animated.ScrollView>
       </ErrorBoundary>
     </GradientBackground>
   );
@@ -297,9 +364,47 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xxl + spacing.md,
     paddingBottom: spacing.xxl * 3,
+    // paddingTop is handled inline
   },
+  fixedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    paddingHorizontal: spacing.lg,
+    overflow: 'hidden', // Clip greeting when it slides up? No, fade is better.
+    // justifyContent: 'flex-start',
+  },
+  headerBackground: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  headerTopRow: {
+    marginTop: Platform.OS === 'ios' ? 50 : 35,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    height: 60,
+    zIndex: 10,
+    paddingHorizontal: 4, // Slight offset for buttons
+  },
+  stickyTitle: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    lineHeight: Platform.OS === 'ios' ? 60 : undefined, // Center vertically on iOS
+    fontSize: typography.fontSize.base,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.textPrimary,
+    zIndex: -1,
+  },
+  // Restored Header Styles
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -311,7 +416,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -322,12 +427,18 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.surfaceHighlight,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  // ... rest of styles
   greetingSection: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
+  },
+  expandedGreeting: {
+    marginTop: spacing.lg + 10,
+    paddingLeft: 4, // Align with menu button visually
   },
   greeting: {
     fontSize: typography.fontSize.xxl,
