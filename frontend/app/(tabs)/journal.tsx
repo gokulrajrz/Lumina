@@ -190,7 +190,7 @@ export default function JournalScreen() {
           <Text style={styles.title}>Cosmic Journal</Text>
           <TouchableOpacity
             style={styles.addButton}
-            onPress={() => setWriting(true)}
+            onPress={() => openEditor()}
           >
             <Ionicons name="add" size={24} color={colors.background} />
           </TouchableOpacity>

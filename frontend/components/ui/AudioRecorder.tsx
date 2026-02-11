@@ -54,9 +54,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
     // Update player when prop changes
     useEffect(() => {
-        if (existingAudioUri) {
-            setPlayingUri(existingAudioUri);
-        }
+        setPlayingUri(existingAudioUri || null);
     }, [existingAudioUri]);
 
     // Handle Playback Status
