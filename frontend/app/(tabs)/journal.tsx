@@ -9,10 +9,10 @@ import {
   Alert,
   TextInput,
   Modal,
-  Keyboard,
-  TouchableWithoutFeedback,
   Platform,
   KeyboardAvoidingView,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -23,7 +23,6 @@ import { GradientBackground } from '../../components/ui/Layout/GradientBackgroun
 import { JournalSkeleton } from '../../components/ui/SkeletonLoader';
 import { useUserStore } from '../../stores/userStore';
 import { useJournalStore } from '../../stores/journalStore';
-import { api } from '../../services/api';
 import { audioService } from '../../services/audioService';
 import { AudioRecorder } from '../../components/ui/AudioRecorder';
 import { colors, spacing, typography } from '../../constants/theme';
@@ -33,7 +32,7 @@ export default function JournalScreen() {
   const router = useRouter();
   const { profile } = useUserStore();
   const { entries, loadEntries, addEntry, updateEntry, deleteEntry, isLoading } = useJournalStore();
-  const params = useLocalSearchParams(); // Capture params
+  const params = useLocalSearchParams();
 
   const [refreshing, setRefreshing] = useState(false);
   const [writing, setWriting] = useState(false);
@@ -41,9 +40,9 @@ export default function JournalScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [audioUri, setAudioUri] = useState<string | null>(null);
-  const [entryPrompt, setEntryPrompt] = useState<string>(''); // New state for prompt
+  const [entryPrompt, setEntryPrompt] = useState<string>('');
   const [entryMood, setEntryMood] = useState<number>(3);
-  const [entryTags, setEntryTags] = useState<string>(''); // Comma separated for simplicity
+  const [entryTags, setEntryTags] = useState<string>('');
 
   const fetchEntries = useCallback(async () => {
     if (!profile?.user_id) return;
@@ -61,13 +60,9 @@ export default function JournalScreen() {
       if (params.prompt) {
         setEntryPrompt(params.prompt as string);
         setWriting(true);
-        // We handle the param, but we don't clear it here to avoid infinite loops if not careful.
-        // However, standard navigation params usually persist until overwritten.
-        // To prevent re-opening on simple tab switches without new params, we might need a ref or check if we already processed it.
-        // But for now, let's trust the user clicked the button which sets the param.
-        router.setParams({ prompt: '' }); // Clear it so it doesn't reopen on next focus
+        router.setParams({ prompt: '' });
       }
-    }, [params.prompt])
+    }, [params.prompt, router])
   );
 
   const handleRefresh = async () => {
@@ -81,14 +76,14 @@ export default function JournalScreen() {
       setEditingEntry(entry);
       setNewEntryText(entry.content);
       setAudioUri(entry.audio_url || null);
-      setEntryPrompt(entry.prompt || ''); // Load existing prompt if any
+      setEntryPrompt(entry.prompt || '');
       setEntryMood(entry.mood || 3);
       setEntryTags(entry.tags?.join(', ') || '');
     } else {
       setEditingEntry(null);
       setNewEntryText('');
       setAudioUri(null);
-      setEntryPrompt(''); // Clear prompt for fresh entry
+      setEntryPrompt('');
       setEntryMood(3);
       setEntryTags('');
     }
@@ -103,7 +98,6 @@ export default function JournalScreen() {
 
     if (!profile?.user_id) return;
 
-    // Parse tags
     const tagsArray = entryTags
       .split(',')
       .map(t => t.trim())
@@ -113,7 +107,6 @@ export default function JournalScreen() {
     try {
       let uploadedAudioUrl = audioUri;
 
-      // If it's a local file (not already an http URL), upload it
       if (audioUri && !audioUri.startsWith('http')) {
         uploadedAudioUrl = await audioService.uploadAudio(audioUri, profile.user_id);
       }
@@ -123,8 +116,7 @@ export default function JournalScreen() {
           content: newEntryText,
           mood: entryMood as any,
           tags: tagsArray,
-          audio_url: uploadedAudioUrl || undefined
-          // Prompt usually doesn't change on edit
+          audio_url: uploadedAudioUrl || undefined,
         });
         Alert.alert('Updated', 'Your entry has been updated.');
       } else {
@@ -132,8 +124,8 @@ export default function JournalScreen() {
           content: newEntryText,
           mood: entryMood as any,
           tags: tagsArray,
-          prompt: entryPrompt, // Save the prompt!
-          audio_url: uploadedAudioUrl || undefined
+          prompt: entryPrompt,
+          audio_url: uploadedAudioUrl || undefined,
         });
         Alert.alert('Saved', 'Your cosmic thought has been recorded.');
       }
@@ -155,7 +147,7 @@ export default function JournalScreen() {
   const handleDelete = (entry: JournalEntry) => {
     Alert.alert(
       'Delete Entry',
-      'Are you sure you want to delete this specific cosmic memory?',
+      'Are you sure you want to delete this entry?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -173,6 +165,7 @@ export default function JournalScreen() {
     );
   };
 
+  // ── List Item ──────────────────────────────────────────────────────────
   const renderItem = ({ item }: { item: JournalEntry }) => (
     <Card style={styles.entryCard}>
       <View style={styles.entryHeader}>
@@ -209,7 +202,7 @@ export default function JournalScreen() {
         </View>
       </View>
 
-      {/* Mood & Tags Display */}
+      {/* Mood & Tags */}
       {(item.mood || (item.tags && item.tags.length > 0)) && (
         <View style={styles.metaDisplayRow}>
           {item.mood && (
@@ -231,12 +224,13 @@ export default function JournalScreen() {
         </View>
       )}
 
-      {/* Display Prompt if exists */}
+      {/* Prompt */}
       {item.prompt ? (
         <Text style={styles.savedPrompt}>"{item.prompt}"</Text>
       ) : null}
 
       <Text style={styles.entryContent}>{item.content}</Text>
+
       {item.audio_url && (
         <AudioRecorder
           onRecordingComplete={() => { }}
@@ -252,6 +246,7 @@ export default function JournalScreen() {
     </Card>
   );
 
+  // ── Main Screen ────────────────────────────────────────────────────────
   return (
     <GradientBackground>
       <StatusBar style="light" />
@@ -296,42 +291,55 @@ export default function JournalScreen() {
           />
         )}
 
+        {/* ── Editor Modal ─────────────────────────────────────────────── */}
         <Modal visible={writing} animationType="slide" transparent>
-          <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={styles.modalContainer}
-            >
-              <View style={styles.modalHeader}>
-                <TouchableOpacity onPress={() => setWriting(false)}>
-                  <Text style={styles.modalCancel}>Cancel</Text>
-                </TouchableOpacity>
-                <View style={styles.titleRow}>
-                  <Text style={styles.modalTitle}>
-                    {editingEntry ? 'Edit Entry' : 'New Entry'}
-                  </Text>
-                  <TouchableOpacity onPress={() => Keyboard.dismiss()} style={styles.headerDismiss}>
-                    <Ionicons name="chevron-down-circle-outline" size={20} color={colors.textTertiary} />
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity
-                  onPress={handleSaveEntry}
-                  disabled={submitting}
-                >
-                  <Text style={[styles.modalSave, submitting && styles.disabledText]}>
-                    {submitting ? 'Saving...' : 'Save'}
-                  </Text>
-                </TouchableOpacity>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalContainer}
+          >
+            {/* Header: Cancel ─ Title (centered) ─ Save */}
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                onPress={() => setWriting(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={styles.modalCancel}>Cancel</Text>
+              </TouchableOpacity>
+
+              {/* Absolutely centered title */}
+              <View style={styles.titleRowCentered} pointerEvents="none">
+                <Text style={styles.modalTitle}>
+                  {editingEntry ? 'Edit Entry' : 'New Entry'}
+                </Text>
               </View>
 
-              {/* Display prompt being answered */}
+              <TouchableOpacity
+                onPress={handleSaveEntry}
+                disabled={submitting}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={[styles.modalSave, submitting && styles.disabledText]}>
+                  {submitting ? 'Saving...' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Scrollable body */}
+            <ScrollView
+              style={styles.modalBody}
+              contentContainerStyle={styles.modalBodyContent}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
+            >
+              {/* Prompt */}
               {entryPrompt ? (
                 <View style={styles.promptContainer}>
-                  <Text style={styles.promptLabel}>Reflecting on:</Text>
+                  <Text style={styles.promptLabel}>Reflecting on</Text>
                   <Text style={styles.promptText}>{entryPrompt}</Text>
                 </View>
               ) : null}
 
+              {/* Text input */}
               <TextInput
                 style={styles.input}
                 multiline
@@ -341,53 +349,68 @@ export default function JournalScreen() {
                 onChangeText={setNewEntryText}
                 autoFocus
               />
+            </ScrollView>
 
-              {/* Mood & Tags Section */}
-              <View style={styles.metaContainer}>
-                <View style={styles.moodContainer}>
-                  <Text style={styles.sectionLabel}>Mood</Text>
-                  <View style={styles.starsRow}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <TouchableOpacity key={star} onPress={() => setEntryMood(star)}>
-                        <Ionicons
-                          name={star <= entryMood ? 'star' : 'star-outline'}
-                          size={32}
-                          color={colors.primary}
-                          style={{ marginHorizontal: 4 }}
-                        />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                <View style={styles.tagsContainer}>
-                  <Text style={styles.sectionLabel}>Tags</Text>
-                  <TextInput
-                    style={styles.tagsInput}
-                    placeholder="e.g. gratitude, dreams, work..."
-                    placeholderTextColor={colors.textTertiary}
-                    value={entryTags}
-                    onChangeText={setEntryTags}
-                  />
+            {/* Bottom toolbar: Mood, Tags, Audio */}
+            <View style={styles.toolbar}>
+              {/* Mood row */}
+              <View style={styles.toolbarRow}>
+                <Text style={styles.toolbarLabel}>Mood</Text>
+                <View style={styles.starsRow}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity key={star} onPress={() => setEntryMood(star)}>
+                      <Ionicons
+                        name={star <= entryMood ? 'star' : 'star-outline'}
+                        size={28}
+                        color={colors.primary}
+                        style={{ marginHorizontal: 3 }}
+                      />
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
 
-              <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.lg }}>
+              {/* Tags row */}
+              <View style={styles.toolbarRow}>
+                <Text style={styles.toolbarLabel}>Tags</Text>
+                <TextInput
+                  style={styles.tagsInput}
+                  placeholder="gratitude, dreams, work..."
+                  placeholderTextColor={colors.textTertiary}
+                  value={entryTags}
+                  onChangeText={setEntryTags}
+                />
+              </View>
+
+              {/* Audio */}
+              <View style={styles.audioRow}>
                 <AudioRecorder
                   onRecordingComplete={setAudioUri}
                   existingAudioUri={audioUri || undefined}
                   onDeleteAudio={() => setAudioUri(null)}
                 />
               </View>
-            </KeyboardAvoidingView>
-          </TouchableWithoutFeedback>
+            </View>
+
+            {/* Saving overlay */}
+            {submitting && (
+              <View style={styles.savingOverlay}>
+                <View style={styles.savingBox}>
+                  <ActivityIndicator size="large" color={colors.textPrimary} />
+                  <Text style={styles.savingText}>Saving your entry...</Text>
+                </View>
+              </View>
+            )}
+          </KeyboardAvoidingView>
         </Modal>
       </View>
-    </GradientBackground>
+    </GradientBackground >
   );
 }
 
+// ── Styles ─────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
+  // ─ Screen ─
   container: {
     flex: 1,
   },
@@ -416,14 +439,16 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: 130,
   },
+
+  // ─ Entry Card ─
   entryCard: {
     marginBottom: spacing.md,
   },
   entryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
     alignItems: 'flex-start',
+    marginBottom: spacing.sm,
   },
   actionRow: {
     flexDirection: 'row',
@@ -453,6 +478,37 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     opacity: 0.8,
   },
+
+  // ─ Entry Meta (list view) ─
+  metaDisplayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+    gap: spacing.md,
+  },
+  moodDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  tagsDisplay: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  tagBadge: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  tagText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+
+  // ─ Entry Insight ─
   insightContainer: {
     marginTop: spacing.md,
     padding: spacing.md,
@@ -473,6 +529,8 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontStyle: 'italic',
   },
+
+  // ─ Empty State ─
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -488,123 +546,150 @@ const styles = StyleSheet.create({
   emptyButton: {
     minWidth: 200,
   },
+
+  // ─ Modal Container ─
   modalContainer: {
     flex: 1,
     paddingTop: spacing.xxl,
     backgroundColor: colors.background,
   },
+
+  // ─ Modal Header ─
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    minHeight: 50,
   },
-  titleRow: {
-    flexDirection: 'row',
+  titleRowCentered: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
   },
   modalTitle: {
     fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.bold,
     color: colors.textPrimary,
   },
-  headerDismiss: {
-    padding: 4,
-  },
   modalCancel: {
     fontSize: typography.fontSize.base,
     color: colors.textSecondary,
+    zIndex: 1,
   },
   modalSave: {
     fontSize: typography.fontSize.base,
     color: colors.textPrimary,
     fontWeight: typography.fontWeight.bold,
+    zIndex: 1,
   },
   disabledText: {
     opacity: 0.4,
   },
+
+  // ─ Modal Body (scrollable) ─
+  modalBody: {
+    flex: 1,
+  },
+  modalBodyContent: {
+    flexGrow: 1,
+  },
+
+  // ─ Prompt ─
   promptContainer: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.02)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   promptLabel: {
-    fontSize: typography.fontSize.xs,
+    fontSize: 10,
     color: colors.textTertiary,
     textTransform: 'uppercase',
-    marginBottom: 4,
+    letterSpacing: 1,
+    marginBottom: 6,
   },
   promptText: {
-    fontSize: typography.fontSize.base,
-    color: colors.textPrimary,
-    fontStyle: 'italic',
-  },
-  metaContainer: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md,
-    gap: spacing.md,
-  },
-  metaDisplayRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-    gap: spacing.md,
-  },
-  moodDisplay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    marginTop: 2,
-  },
-  tagsDisplay: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
-  },
-  tagBadge: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  tagText: {
-    fontSize: 10,
+    fontSize: typography.fontSize.sm,
     color: colors.textSecondary,
-    fontWeight: '500',
+    fontStyle: 'italic',
+    lineHeight: 20,
   },
-  moodContainer: {
-    gap: 8,
+
+  // ─ Text Input ─
+  input: {
+    flex: 1,
+    padding: spacing.lg,
+    fontSize: typography.fontSize.base,
+    lineHeight: 24,
+    color: colors.textPrimary,
+    textAlignVertical: 'top',
+    minHeight: 200,
   },
-  sectionLabel: {
+
+  // ─ Bottom Toolbar (Mood, Tags, Audio) ─
+  toolbar: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+  toolbarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  toolbarLabel: {
     fontSize: typography.fontSize.xs,
     color: colors.textTertiary,
     textTransform: 'uppercase',
     fontWeight: typography.fontWeight.bold,
-    marginBottom: 4,
+    letterSpacing: 0.5,
   },
   starsRow: {
     flexDirection: 'row',
-  },
-  tagsContainer: {
-    gap: 8,
+    alignItems: 'center',
   },
   tagsInput: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    flex: 1,
+    marginLeft: spacing.md,
+    backgroundColor: 'rgba(255,255,255,0.03)',
     borderRadius: 8,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
     color: colors.textPrimary,
     fontSize: typography.fontSize.sm,
   },
-  input: {
-    flex: 1,
-    padding: spacing.lg,
-    fontSize: typography.fontSize.lg,
-    color: colors.textPrimary,
-    textAlignVertical: 'top',
+  audioRow: {
+    marginTop: 4,
+  },
+
+  // ─ Saving Overlay ─
+  savingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  savingBox: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    paddingVertical: 28,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    gap: 16,
+  },
+  savingText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    fontWeight: typography.fontWeight.medium,
   },
 });
