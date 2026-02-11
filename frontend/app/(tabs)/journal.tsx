@@ -15,6 +15,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -29,14 +30,20 @@ import { colors, spacing, typography } from '../../constants/theme';
 import { JournalEntry } from '../../types';
 
 export default function JournalScreen() {
+  const router = useRouter();
   const { profile } = useUserStore();
   const { entries, loadEntries, addEntry, updateEntry, deleteEntry, isLoading } = useJournalStore();
+  const params = useLocalSearchParams(); // Capture params
+
   const [refreshing, setRefreshing] = useState(false);
   const [writing, setWriting] = useState(false);
   const [newEntryText, setNewEntryText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [audioUri, setAudioUri] = useState<string | null>(null);
+  const [entryPrompt, setEntryPrompt] = useState<string>(''); // New state for prompt
+  const [entryMood, setEntryMood] = useState<number>(3);
+  const [entryTags, setEntryTags] = useState<string>(''); // Comma separated for simplicity
 
   const fetchEntries = useCallback(async () => {
     if (!profile?.user_id) return;
@@ -46,6 +53,22 @@ export default function JournalScreen() {
   useEffect(() => {
     fetchEntries();
   }, [fetchEntries]);
+
+  // Handle incoming prompt from navigation using useFocusEffect
+  // This ensures it triggers even if the tab is already mounted
+  useFocusEffect(
+    useCallback(() => {
+      if (params.prompt) {
+        setEntryPrompt(params.prompt as string);
+        setWriting(true);
+        // We handle the param, but we don't clear it here to avoid infinite loops if not careful.
+        // However, standard navigation params usually persist until overwritten.
+        // To prevent re-opening on simple tab switches without new params, we might need a ref or check if we already processed it.
+        // But for now, let's trust the user clicked the button which sets the param.
+        router.setParams({ prompt: '' }); // Clear it so it doesn't reopen on next focus
+      }
+    }, [params.prompt])
+  );
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -58,10 +81,16 @@ export default function JournalScreen() {
       setEditingEntry(entry);
       setNewEntryText(entry.content);
       setAudioUri(entry.audio_url || null);
+      setEntryPrompt(entry.prompt || ''); // Load existing prompt if any
+      setEntryMood(entry.mood || 3);
+      setEntryTags(entry.tags?.join(', ') || '');
     } else {
       setEditingEntry(null);
       setNewEntryText('');
       setAudioUri(null);
+      setEntryPrompt(''); // Clear prompt for fresh entry
+      setEntryMood(3);
+      setEntryTags('');
     }
     setWriting(true);
   };
@@ -73,6 +102,12 @@ export default function JournalScreen() {
     }
 
     if (!profile?.user_id) return;
+
+    // Parse tags
+    const tagsArray = entryTags
+      .split(',')
+      .map(t => t.trim())
+      .filter(t => t.length > 0);
 
     setSubmitting(true);
     try {
@@ -86,20 +121,27 @@ export default function JournalScreen() {
       if (editingEntry) {
         await updateEntry(editingEntry.entry_id, {
           content: newEntryText,
+          mood: entryMood as any,
+          tags: tagsArray,
           audio_url: uploadedAudioUrl || undefined
+          // Prompt usually doesn't change on edit
         });
         Alert.alert('Updated', 'Your entry has been updated.');
       } else {
         await addEntry(profile.user_id, {
           content: newEntryText,
-          mood: 3,
-          tags: [],
+          mood: entryMood as any,
+          tags: tagsArray,
+          prompt: entryPrompt, // Save the prompt!
           audio_url: uploadedAudioUrl || undefined
         });
         Alert.alert('Saved', 'Your cosmic thought has been recorded.');
       }
       setNewEntryText('');
       setAudioUri(null);
+      setEntryPrompt('');
+      setEntryMood(3);
+      setEntryTags('');
       setEditingEntry(null);
       setWriting(false);
     } catch (error) {
@@ -166,6 +208,34 @@ export default function JournalScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Mood & Tags Display */}
+      {(item.mood || (item.tags && item.tags.length > 0)) && (
+        <View style={styles.metaDisplayRow}>
+          {item.mood && (
+            <View style={styles.moodDisplay}>
+              {[...Array(item.mood)].map((_, i) => (
+                <Ionicons key={i} name="star" size={14} color={colors.primary} />
+              ))}
+            </View>
+          )}
+          {item.tags && item.tags.length > 0 && (
+            <View style={styles.tagsDisplay}>
+              {item.tags.map((tag, index) => (
+                <View key={index} style={styles.tagBadge}>
+                  <Text style={styles.tagText}>#{tag}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Display Prompt if exists */}
+      {item.prompt ? (
+        <Text style={styles.savedPrompt}>"{item.prompt}"</Text>
+      ) : null}
+
       <Text style={styles.entryContent}>{item.content}</Text>
       {item.audio_url && (
         <AudioRecorder
@@ -253,6 +323,15 @@ export default function JournalScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Display prompt being answered */}
+              {entryPrompt ? (
+                <View style={styles.promptContainer}>
+                  <Text style={styles.promptLabel}>Reflecting on:</Text>
+                  <Text style={styles.promptText}>{entryPrompt}</Text>
+                </View>
+              ) : null}
+
               <TextInput
                 style={styles.input}
                 multiline
@@ -262,6 +341,37 @@ export default function JournalScreen() {
                 onChangeText={setNewEntryText}
                 autoFocus
               />
+
+              {/* Mood & Tags Section */}
+              <View style={styles.metaContainer}>
+                <View style={styles.moodContainer}>
+                  <Text style={styles.sectionLabel}>Mood</Text>
+                  <View style={styles.starsRow}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <TouchableOpacity key={star} onPress={() => setEntryMood(star)}>
+                        <Ionicons
+                          name={star <= entryMood ? 'star' : 'star-outline'}
+                          size={32}
+                          color={colors.primary}
+                          style={{ marginHorizontal: 4 }}
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.tagsContainer}>
+                  <Text style={styles.sectionLabel}>Tags</Text>
+                  <TextInput
+                    style={styles.tagsInput}
+                    placeholder="e.g. gratitude, dreams, work..."
+                    placeholderTextColor={colors.textTertiary}
+                    value={entryTags}
+                    onChangeText={setEntryTags}
+                  />
+                </View>
+              </View>
+
               <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.lg }}>
                 <AudioRecorder
                   onRecordingComplete={setAudioUri}
@@ -336,6 +446,13 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 22,
   },
+  savedPrompt: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textPrimary,
+    fontStyle: 'italic',
+    marginBottom: spacing.sm,
+    opacity: 0.8,
+  },
   insightContainer: {
     marginTop: spacing.md,
     padding: spacing.md,
@@ -409,6 +526,79 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     opacity: 0.4,
+  },
+  promptContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  promptLabel: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textTertiary,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  promptText: {
+    fontSize: typography.fontSize.base,
+    color: colors.textPrimary,
+    fontStyle: 'italic',
+  },
+  metaContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+    gap: spacing.md,
+  },
+  metaDisplayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+    gap: spacing.md,
+  },
+  moodDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginTop: 2,
+  },
+  tagsDisplay: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  tagBadge: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  tagText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  moodContainer: {
+    gap: 8,
+  },
+  sectionLabel: {
+    fontSize: typography.fontSize.xs,
+    color: colors.textTertiary,
+    textTransform: 'uppercase',
+    fontWeight: typography.fontWeight.bold,
+    marginBottom: 4,
+  },
+  starsRow: {
+    flexDirection: 'row',
+  },
+  tagsContainer: {
+    gap: 8,
+  },
+  tagsInput: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
+    padding: spacing.md,
+    color: colors.textPrimary,
+    fontSize: typography.fontSize.sm,
   },
   input: {
     flex: 1,

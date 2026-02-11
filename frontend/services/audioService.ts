@@ -1,5 +1,4 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { decode } from 'base64-arraybuffer';
 import { supabase } from './supabase';
 
 export const audioService = {

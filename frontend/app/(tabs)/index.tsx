@@ -333,7 +333,7 @@ export default function HomeScreen() {
                   <Button
                     title="Write Entry"
                     variant="ghost"
-                    onPress={() => router.push('/journal')}
+                    onPress={() => router.push({ pathname: '/journal', params: { prompt: briefing.journalPrompt } })}
                     style={{ alignSelf: 'flex-start', marginTop: spacing.sm, paddingLeft: 0 }}
                   />
                 </Card>
