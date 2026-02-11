@@ -51,6 +51,7 @@ async def create_journal_entry(
         "mood": data.mood,
         "tags": data.tags,
         "prompt": data.prompt,
+        "audio_url": data.audio_url,
         "transits_snapshot": transits,
         "created_at": now.isoformat(),
         "updated_at": now.isoformat(),
@@ -100,6 +101,8 @@ async def update_journal_entry(
         update_data["mood"] = data.mood
     if data.tags is not None:
         update_data["tags"] = data.tags
+    if data.audio_url is not None:
+        update_data["audio_url"] = data.audio_url
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
 
     result = db.update_journal_entry(entry_id, update_data)
@@ -122,6 +125,24 @@ async def delete_journal_entry(
     user = db.get_user_by_id(entry.get("user_id", ""))
     if not user or user.get("supabase_id") != current_user.supabase_id:
         raise HTTPException(status_code=403, detail="Access denied")
+
+    # Delete audio file from storage if it exists
+    audio_url = entry.get("audio_url")
+    if audio_url:
+        try:
+            # Extract path from URL
+            # URL format: .../storage/v1/object/public/journal-audio/user_id/timestamp.ext
+            # or .../storage/v1/object/journal-audio/user_id/timestamp.ext
+            if "/journal-audio/" in audio_url:
+                file_path = audio_url.split("/journal-audio/")[-1]
+                logger.info(f"Deleting audio file: {file_path}")
+                
+                # Use Supabase storage client to remove file
+                storage_response = db.get_db().storage.from_("journal-audio").remove([file_path])
+                logger.info(f"Storage deletion response: {storage_response}")
+        except Exception as e:
+            logger.error(f"Failed to delete audio file from storage: {e}")
+            # Continue with DB deletion even if storage cleanup fails
 
     deleted = db.delete_journal_entry(entry_id)
     if not deleted:

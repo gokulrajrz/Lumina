@@ -95,10 +95,11 @@ class UserProfileCreate(BaseModel):
 
 class JournalEntryCreate(BaseModel):
     """Validated journal entry creation."""
-    content: str = Field(..., min_length=1, max_length=10000, description="Journal content")
+    content: str = Field(default="", min_length=0, max_length=10000, description="Journal content")
     mood: int = Field(..., ge=1, le=5, description="Mood rating 1-5")
     tags: List[str] = Field(default=[], max_length=20, description="Tags")
     prompt: str = Field(default="", max_length=500, description="AI prompt used")
+    audio_url: Optional[str] = Field(default=None, max_length=500, description="Audio recording URL")
 
     @field_validator("tags")
     @classmethod
@@ -114,9 +115,10 @@ class JournalEntryCreate(BaseModel):
 
 class JournalEntryUpdate(BaseModel):
     """Validated journal entry update."""
-    content: Optional[str] = Field(default=None, min_length=1, max_length=10000)
+    content: Optional[str] = Field(default=None, min_length=0, max_length=10000)
     mood: Optional[int] = Field(default=None, ge=1, le=5)
     tags: Optional[List[str]] = Field(default=None, max_length=20)
+    audio_url: Optional[str] = Field(default=None, max_length=500)
 
     @field_validator("tags")
     @classmethod

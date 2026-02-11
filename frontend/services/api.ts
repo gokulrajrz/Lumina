@@ -62,7 +62,11 @@ async function fetchAPI<T>(
         let message = `API Error: ${response.status}`;
         try {
           const parsed = JSON.parse(errorBody);
-          message = parsed.detail || message;
+          if (parsed.detail) {
+            message = typeof parsed.detail === 'object'
+              ? JSON.stringify(parsed.detail)
+              : parsed.detail;
+          }
         } catch {
           message = errorBody || message;
         }

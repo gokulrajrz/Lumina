@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
-import { useAudioRecorder, useAudioPlayer, AudioSource } from 'expo-audio';
+import { useAudioRecorder, useAudioPlayer, AudioSource, requestRecordingPermissionsAsync, RecordingPresets, setAudioModeAsync } from 'expo-audio';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../constants/theme';
 
@@ -16,35 +16,19 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     onDeleteAudio,
 }) => {
     // Recorder setup
-    const audioRecorder = useAudioRecorder({
-        sampleRate: 44100,
-        bitRate: 128000,
-        numberOfChannels: 1,
-        extension: '.m4a',
-        android: {
-            extension: '.m4a',
-            outputFormat: 2, // MPEG_4
-            audioEncoder: 3, // AAC
-        } as any,
-        ios: {
-            extension: '.m4a',
-            outputFormat: 'mpeg4aac',
-            audioQuality: 127,
-            sampleRate: 44100,
-            numberOfChannels: 1,
-            bitRate: 128000,
-            linearPCMBitDepth: 16,
-            linearPCMIsBigEndian: false,
-            linearPCMIsFloat: false,
-        } as any,
-        web: {
-            mimeType: 'audio/mp4',
-            bitsPerSecond: 128000,
-        }
-    });
+    const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
     useEffect(() => {
         console.log('AudioRecorder mounted');
+
+        return () => {
+            // Cleanup: Restore audio mode for general playback
+            setAudioModeAsync({
+                allowsRecording: false,
+                playsInSilentMode: true,
+                shouldPlayInBackground: false,
+            }).catch(err => console.warn('Failed to reset audio mode:', err));
+        };
     }, []);
 
     const [isRecording, setIsRecording] = useState(false);
@@ -93,18 +77,37 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
     const startRecording = async () => {
         try {
+            const permission = await requestRecordingPermissionsAsync();
+            if (permission.status !== 'granted') {
+                Alert.alert('Permission needed', 'Please grant microphone permission to record audio.');
+                return;
+            }
+
+            // Configure audio mode for recording
+            await setAudioModeAsync({
+                allowsRecording: true,
+                playsInSilentMode: true,
+                interruptionMode: 'doNotMix',
+                shouldPlayInBackground: false,
+            });
+
             if (!audioRecorder.isRecording) {
+                console.log('Preparing to record...');
                 await audioRecorder.prepareToRecordAsync();
+                console.log('Starting recording...');
                 audioRecorder.record();
                 setIsRecording(true);
+                console.log('Recording started');
             }
         } catch (err) {
-            Alert.alert('Failed to start recording', err as string);
+            console.error('Start recording error:', err);
+            Alert.alert('Failed to start recording', String(err));
         }
     };
 
     const stopRecording = async () => {
         if (isRecording) {
+            console.log('Stopping recording...');
             await audioRecorder.stop();
             setIsRecording(false);
             const uri = audioRecorder.uri;
