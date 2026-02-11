@@ -12,6 +12,7 @@ import {
     Switch,
     Alert,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabase';
@@ -77,7 +78,9 @@ export default function Settings() {
     };
 
     const planets = profile?.birth_chart?.planets || {};
+    // @ts-ignore - Dynamic access
     const sunSign = planets?.Sun?.sign || 'Unknown';
+    // @ts-ignore - Dynamic access
     const moonSign = planets?.Moon?.sign || 'Unknown';
     const asc = profile?.birth_chart?.ascendant?.sign || 'Unknown';
 
@@ -85,14 +88,17 @@ export default function Settings() {
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={() => router.back()}
-                    style={styles.backButton}
-                    accessibilityLabel="Go back"
-                    accessibilityRole="button"
-                >
-                    <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-                </TouchableOpacity>
+                {/* @ts-ignore: Reanimated prop */}
+                <Animated.View sharedTransitionTag="menuButton" style={styles.backButtonContainer}>
+                    <TouchableOpacity
+                        onPress={() => router.back()}
+                        style={styles.backButton}
+                        accessibilityLabel="Go back"
+                        accessibilityRole="button"
+                    >
+                        <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+                    </TouchableOpacity>
+                </Animated.View>
                 <Text style={styles.title}>Settings</Text>
             </View>
 
@@ -209,9 +215,19 @@ const styles = StyleSheet.create({
         marginBottom: spacing.xl,
         paddingTop: spacing.xl,
     },
-    backButton: {
-        padding: spacing.sm,
+    backButtonContainer: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        backgroundColor: 'rgba(255,255,255,0.05)',
         marginRight: spacing.md,
+        overflow: 'hidden',
+    },
+    backButton: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     title: {
         fontSize: typography.fontSize.xxl,

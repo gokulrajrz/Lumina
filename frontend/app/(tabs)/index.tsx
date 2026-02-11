@@ -162,14 +162,17 @@ export default function HomeScreen() {
 
           {/* Top Row: Menu - Title - Avatar */}
           <View style={styles.headerTopRow}>
-            <TouchableOpacity
-              onPress={() => router.push('/settings')}
-              style={styles.menuButton}
-              accessibilityLabel="Open settings"
-              accessibilityRole="button"
-            >
-              <Ionicons name="grid-outline" size={22} color={colors.textPrimary} />
-            </TouchableOpacity>
+            {/* @ts-ignore: Reanimated prop */}
+            <Animated.View sharedTransitionTag="menuButton" style={styles.menuButton}>
+              <TouchableOpacity
+                onPress={() => router.push('/settings')}
+                style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}
+                accessibilityLabel="Open settings"
+                accessibilityRole="button"
+              >
+                <Ionicons name="grid-outline" size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </Animated.View>
 
             {/* Collapsed Title */}
             <Animated.Text style={[styles.stickyTitle, smallTitleOpacityStyle]}>
