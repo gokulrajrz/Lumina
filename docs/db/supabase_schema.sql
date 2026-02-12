@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS public.journal_entries (
   mood INTEGER NOT NULL CHECK (mood >= 1 AND mood <= 5),
   tags TEXT[] DEFAULT '{}',
   prompt TEXT,
+  audio_url TEXT,
   transits_snapshot JSONB NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -53,6 +54,16 @@ CREATE TABLE IF NOT EXISTS public.chat_messages (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Daily insights table (caching for briefings)
+CREATE TABLE IF NOT EXISTS public.daily_insights (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id TEXT NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  content JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, date)
+);
+
 -- ============================================
 -- INDEXES
 -- ============================================
@@ -64,6 +75,7 @@ CREATE INDEX IF NOT EXISTS idx_journal_entry_id ON public.journal_entries(entry_
 CREATE INDEX IF NOT EXISTS idx_chat_conversation ON public.chat_messages(conversation_id, created_at ASC);
 CREATE INDEX IF NOT EXISTS idx_chat_user ON public.chat_messages(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_message_id ON public.chat_messages(message_id);
+CREATE INDEX IF NOT EXISTS idx_daily_insights_user_date ON public.daily_insights(user_id, date);
 
 -- ============================================
 -- ROW LEVEL SECURITY (RLS)
@@ -72,6 +84,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_message_id ON public.chat_messages(message_i
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.journal_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.daily_insights ENABLE ROW LEVEL SECURITY;
 
 -- Users policies
 DROP POLICY IF EXISTS "Users can view own profile" ON public.users;
@@ -130,6 +143,23 @@ CREATE POLICY "Users can insert own chat messages" ON public.chat_messages
 
 DROP POLICY IF EXISTS "Service role can manage all chat messages" ON public.chat_messages;
 CREATE POLICY "Service role can manage all chat messages" ON public.chat_messages
+  FOR ALL USING (auth.jwt()->>'role' = 'service_role');
+
+-- Daily insights policies
+DROP POLICY IF EXISTS "Users can view own daily insights" ON public.daily_insights;
+CREATE POLICY "Users can view own daily insights" ON public.daily_insights
+  FOR SELECT USING (
+    user_id IN (SELECT user_id FROM public.users WHERE supabase_id = auth.uid())
+  );
+
+DROP POLICY IF EXISTS "Users can insert own daily insights" ON public.daily_insights;
+CREATE POLICY "Users can insert own daily insights" ON public.daily_insights
+  FOR INSERT WITH CHECK (
+    user_id IN (SELECT user_id FROM public.users WHERE supabase_id = auth.uid())
+  );
+
+DROP POLICY IF EXISTS "Service role can manage all daily insights" ON public.daily_insights;
+CREATE POLICY "Service role can manage all daily insights" ON public.daily_insights
   FOR ALL USING (auth.jwt()->>'role' = 'service_role');
 
 -- ============================================

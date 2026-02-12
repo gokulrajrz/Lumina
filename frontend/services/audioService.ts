@@ -28,7 +28,7 @@ export const audioService = {
             // Construct Supabase Storage URL
             const uploadUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/journal-audio/${filePath}`;
 
-            console.log(`Uploading ${mimeType} to: ${uploadUrl}`);
+            if (__DEV__) console.log(`Uploading ${mimeType} to: ${uploadUrl}`);
 
             // Upload directly from filesystem (native upload)
             const response = await FileSystem.uploadAsync(uploadUrl, uri, {
@@ -41,16 +41,16 @@ export const audioService = {
             });
 
             if (response.status !== 200) {
-                console.error('Upload failed body:', response.body);
+                if (__DEV__) console.error('Upload failed body:', response.body);
                 throw new Error(`Upload failed with status ${response.status}: ${response.body}`);
             }
 
             // Cleanup local file after successful upload
             try {
                 await FileSystem.deleteAsync(uri, { idempotent: true });
-                console.log('Local recording deleted:', uri);
+                if (__DEV__) console.log('Local recording deleted:', uri);
             } catch (cleanupErr) {
-                console.warn('Failed to delete local recording:', cleanupErr);
+                if (__DEV__) console.warn('Failed to delete local recording:', cleanupErr);
             }
 
             // Get public URL
@@ -60,7 +60,7 @@ export const audioService = {
 
             return publicUrl;
         } catch (error) {
-            console.error('Audio upload failed:', error);
+            if (__DEV__) console.error('Audio upload failed:', error);
             throw error;
         }
     },

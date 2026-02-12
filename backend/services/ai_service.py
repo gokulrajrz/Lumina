@@ -9,12 +9,19 @@ import asyncio
 import threading
 from typing import Optional
 from google import genai
-from google.genai import types
+from google.genai import types, errors
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from config import get_settings
 
 logger = logging.getLogger(__name__)
+
+class AIServiceError(Exception):
+    """Custom exception for AI service failures."""
+    def __init__(self, message: str, status_code: int = 500):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(self.message)
 
 _genai_client = None
 _client_lock = threading.Lock()
@@ -75,12 +82,21 @@ async def generate_response(
         return response.text
 
     except asyncio.TimeoutError:
-        logger.error("AI generation timed out after 30s")
-        raise RuntimeError("AI service timed out")
+        logger.error("AI service timeout: Request exceeded 30s limit")
+        raise AIServiceError("AI service timed out", status_code=504)
+
+    except errors.ClientError as e:
+        # Professional single-line logging for API client errors (e.g. 429)
+        msg = str(e).split(". {")[0]  # Strip the messy raw JSON blob
+        logger.error(f"AI service client error: {msg}")
+        
+        if "429" in msg or "RESOURCE_EXHAUSTED" in msg:
+            raise AIServiceError("Gemini quota exceeded. Please wait a few minutes.", status_code=429)
+        raise AIServiceError(f"AI service error: {msg}")
 
     except Exception as e:
-        logger.error(f"AI generation error: {e}")
-        raise RuntimeError(f"AI generation failed: {str(e)}")
+        logger.error(f"AI generation failed: {str(e)}")
+        raise AIServiceError(f"AI generation failed: {str(e)}")
 
 
 def _parse_json_response(text: str) -> dict:
@@ -99,7 +115,7 @@ def _parse_json_response(text: str) -> dict:
         json_str = text[start:end+1]
         return json.loads(json_str)
     except (json.JSONDecodeError, ValueError) as e:
-        logger.error(f"Failed to parse AI JSON: {e}\nRaw response: {text[:200]}...")
+        logger.error(f"AI JSON parsing failed: {str(e)} | Snippet: {text[:100]}...")
         raise json.JSONDecodeError(str(e), text, 0)
 
 
@@ -206,5 +222,6 @@ async def check_ai_health() -> bool:
         await client.aio.models.get(model=settings.gemini_model)
         return True
     except Exception as e:
-        logger.error(f"AI health check failed (probe failed): {e}")
+        msg = str(e).split(". {")[0]
+        logger.error(f"AI health check failed: {msg}")
         return False

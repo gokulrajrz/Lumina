@@ -11,13 +11,13 @@ import { UserProfile } from '../types';
 
 interface UserState {
   profile: UserProfile | null;
-  isOnboarded: boolean;
+  isInitialized: boolean;
   isLoading: boolean;
   lastFetched: number | null;
 
   setProfile: (profile: UserProfile | null) => Promise<void>;
   loadProfile: () => Promise<void>;
-  validateProfile: () => Promise<boolean>;
+  initialize: () => Promise<void>;
   clearProfile: () => Promise<void>;
 }
 
@@ -25,51 +25,52 @@ export const useUserStore = create<UserState>()(
   persist(
     (set, get) => ({
       profile: null,
-      isOnboarded: false,
+      isInitialized: false,
       isLoading: false,
       lastFetched: null,
 
       setProfile: async (profile) => {
         set({
           profile,
-          isOnboarded: !!profile,
           lastFetched: Date.now(),
         });
       },
 
       loadProfile: async () => {
-        const state = get();
-        if (state.profile) {
-          set({ isOnboarded: true });
-        }
-      },
-
-      validateProfile: async () => {
-        const state = get();
-        if (!state.profile?.user_id) return false;
-
+        set({ isLoading: true, isInitialized: false });
         try {
-          const user = await api.getUser(state.profile.user_id);
-          if (user) {
-            set({
-              profile: user,
-              isOnboarded: true,
-              lastFetched: Date.now(),
-            });
-            return true;
+          const profile = await api.getCurrentUser();
+          set({
+            profile,
+            lastFetched: Date.now(),
+            isInitialized: true,
+          });
+        } catch (error: any) {
+          // If 404 or 401, user just doesn't have a profile yet
+          if (error.status === 404 || error.status === 401) {
+            set({ profile: null });
+          } else {
+            if (__DEV__) console.warn('Failed to load profile:', error);
           }
-          return false;
-        } catch (error) {
-          console.warn('Profile validation failed:', error);
-          return false;
+          set({ isInitialized: true });
+        } finally {
+          set({ isLoading: false });
         }
       },
+
+      initialize: async () => {
+        const state = get();
+        if (!state.isInitialized) {
+          await state.loadProfile();
+        }
+      },
+
 
       clearProfile: async () => {
         set({
           profile: null,
-          isOnboarded: false,
           lastFetched: null,
+          isInitialized: true, // We are "initialized" in an unauthenticated state
         });
       },
     }),
@@ -78,7 +79,6 @@ export const useUserStore = create<UserState>()(
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         profile: state.profile,
-        isOnboarded: state.isOnboarded,
         lastFetched: state.lastFetched,
       }),
     },

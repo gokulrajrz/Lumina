@@ -19,7 +19,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
     useEffect(() => {
-        console.log('AudioRecorder mounted');
+        if (__DEV__) console.log('AudioRecorder mounted');
 
         return () => {
             // Cleanup: Restore audio mode for general playback
@@ -27,7 +27,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
                 allowsRecording: false,
                 playsInSilentMode: true,
                 shouldPlayInBackground: false,
-            }).catch(err => console.warn('Failed to reset audio mode:', err));
+            }).catch(err => { if (__DEV__) console.warn('Failed to reset audio mode:', err); });
         };
     }, []);
 
@@ -90,22 +90,22 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
             });
 
             if (!audioRecorder.isRecording) {
-                console.log('Preparing to record...');
+                if (__DEV__) console.log('Preparing to record...');
                 await audioRecorder.prepareToRecordAsync();
-                console.log('Starting recording...');
+                if (__DEV__) console.log('Starting recording...');
                 audioRecorder.record();
                 setIsRecording(true);
-                console.log('Recording started');
+                if (__DEV__) console.log('Recording started');
             }
         } catch (err) {
-            console.error('Start recording error:', err);
+            if (__DEV__) console.error('Start recording error:', err);
             Alert.alert('Failed to start recording', String(err));
         }
     };
 
     const stopRecording = async () => {
         if (isRecording) {
-            console.log('Stopping recording...');
+            if (__DEV__) console.log('Stopping recording...');
             await audioRecorder.stop();
             setIsRecording(false);
             const uri = audioRecorder.uri;

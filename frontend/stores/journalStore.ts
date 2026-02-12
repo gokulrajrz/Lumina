@@ -46,7 +46,7 @@ export const useJournalStore = create<JournalState>()(
             lastFetched: Date.now(),
           });
         } catch (error) {
-          console.error('Failed to load journal entries:', error);
+          if (__DEV__) console.error('Failed to load journal entries:', error);
           set({ isLoading: false });
         }
       },

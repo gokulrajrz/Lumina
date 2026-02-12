@@ -13,43 +13,63 @@ import { colors } from '../constants/theme';
 export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
-  const { profile, isOnboarded, loadProfile } = useUserStore();
-  const [isReady, setIsReady] = useState(false);
+  const { profile, isInitialized, loadProfile, clearProfile } = useUserStore();
+  const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
-    loadProfile().then(() => setIsReady(true));
-  }, []);
-
-  useEffect(() => {
-    if (!isReady) return;
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      if (currentSession) {
+        loadProfile();
+      } else {
+        useUserStore.setState({ isInitialized: true });
+      }
+    });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === 'SIGNED_OUT') {
-          useUserStore.getState().clearProfile();
-          router.replace('/onboarding');
-          return;
-        }
-
-        if (session && !isOnboarded) {
-          // User is authed but hasn't completed onboarding
-          const inOnboarding = segments[0] === 'onboarding';
-          if (!inOnboarding) {
-            router.replace('/onboarding');
-          }
-        } else if (session && isOnboarded) {
-          const inTabs = segments[0] === '(tabs)';
-          if (!inTabs) {
-            router.replace('/(tabs)');
-          }
-        } else if (!session) {
-          router.replace('/onboarding');
+      (event, currentSession) => {
+        setSession(currentSession);
+        if (event === 'SIGNED_IN') {
+          loadProfile();
+        } else if (event === 'SIGNED_OUT') {
+          clearProfile();
+          router.replace('/login');
         }
       }
     );
 
     return () => subscription.unsubscribe();
-  }, [isReady, isOnboarded]);
+  }, []);
+
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const rootSegment = segments[0];
+    const inTabs = rootSegment === '(tabs)';
+    const inAuth = rootSegment === 'login' || rootSegment === 'onboarding';
+    const inSettings = rootSegment === 'settings';
+
+    if (session) {
+      if (profile) {
+        // User is logged in and has a profile.
+        // Allow them to stay in (tabs) or settings.
+        // If they are in auth screens or at an unknown root, send to (tabs).
+        if (inAuth || (!inTabs && !inSettings)) {
+          router.replace('/(tabs)');
+        }
+      } else {
+        // Logged in but no profile -> must complete onboarding.
+        if (rootSegment !== 'onboarding') {
+          router.replace('/onboarding');
+        }
+      }
+    } else {
+      // Not logged in -> must go to login.
+      if (!inAuth) {
+        router.replace('/login');
+      }
+    }
+  }, [session, profile, isInitialized, segments]);
 
   return (
     <ErrorBoundary>
@@ -60,6 +80,7 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.background },
         }}
       >
+        <Stack.Screen name="login" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" />

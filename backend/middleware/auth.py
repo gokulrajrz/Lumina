@@ -8,7 +8,8 @@ from typing import Optional
 from fastapi import Request, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
-from functools import lru_cache
+import json
+from functools import wraps, lru_cache
 
 from config import get_settings
 
@@ -29,28 +30,105 @@ class AuthenticatedUser:
         return f"AuthenticatedUser(supabase_id={self.supabase_id}, email={self.email})"
 
 
+@lru_cache()
+def _get_verification_key(secret: str, alg: str):
+    """
+    Intelligently loads the verification key based on format and algorithm.
+    Supports: Symmetric (HS), PEM Public Key, and JWK (ES/RS).
+    """
+    if not secret:
+        return None
+
+    clean_secret = secret.strip()
+    
+    # Handle potential wrapping quotes from .env
+    if (clean_secret.startswith("'") and clean_secret.endswith("'")) or \
+       (clean_secret.startswith('"') and clean_secret.endswith('"')):
+        clean_secret = clean_secret[1:-1].strip()
+
+    # Handle JWK (JSON Web Key)
+    if clean_secret.startswith("{") and clean_secret.endswith("}"):
+        try:
+            jwk_dict = json.loads(clean_secret)
+            from jwt import PyJWK
+            key = PyJWK.from_dict(jwk_dict).key
+            logger.debug(f"Successfully loaded {alg} key from JWK format")
+            return key
+        except Exception as e:
+            logger.error(f"Failed to parse SUPABASE_JWT_SECRET as JWK: {e}")
+            # Fall back to raw secret if it looks like JSON but fails to parse
+            pass
+
+    # Symmetric algorithms use the secret directly
+    if alg and alg.startswith("HS"):
+        return secret
+
+    # Asymmetric algorithms (ES, RS) require PEM or JWK
+    # If not a JWK, it must be a PEM (handled by PyJWT)
+    return clean_secret
+
+
 def _decode_supabase_jwt(token: str) -> dict:
     """Decode and verify a Supabase JWT token."""
     settings = get_settings()
 
     try:
-        # Strict verification: Secret MUST be configured
+        # Pre-verify: Secret MUST be configured
         if not settings.supabase_jwt_secret:
             logger.critical("SUPABASE_JWT_SECRET not configured! Cannot verify tokens.")
-            # Fail secure
-            raise HTTPException(status_code=500, detail="Server authentication misconfiguration")
+            raise HTTPException(
+                status_code=500, 
+                detail="Authentication misconfiguration: SUPABASE_JWT_SECRET is missing"
+            )
 
-        payload = jwt.decode(
-            token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
-            audience="authenticated",
-        )
+        # Inspect header for diagnostic logging
+        try:
+            unverified_header = jwt.get_unverified_header(token)
+            alg = unverified_header.get("alg")
+        except Exception:
+            alg = "unknown"
 
-        return payload
+        # Dynamically load the correct key for this algorithm
+        verification_key = _get_verification_key(settings.supabase_jwt_secret, alg)
+
+        if not verification_key:
+            raise jwt.InvalidTokenError("No verification key available")
+
+        try:
+            payload = jwt.decode(
+                token,
+                verification_key,
+                algorithms=["HS256", "HS384", "HS512", "ES256", "RS256"],
+                audience="authenticated",
+            )
+            return payload
+        except (ValueError, TypeError, jwt.InvalidKeyError) as e:
+            # Handle key-format mismatches for asymmetric algorithms
+            if alg in ["ES256", "RS256"]:
+                logger.error(
+                    f"JWT Verification Failed: Algorithm '{alg}' requires a valid public key (PEM or JWK). "
+                    f"Current secret format failed to load. Error: {e}"
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Server misconfiguration: {alg} requires a valid PEM or JWK public key"
+                )
+            raise e
+
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidAlgorithmError as e:
+        header = jwt.get_unverified_header(token)
+        logger.error(f"JWT Algorithm Mismatch: token uses {header.get('alg')}. Error: {e}")
+        raise HTTPException(status_code=401, detail="Token uses an unsupported signing algorithm")
     except jwt.InvalidTokenError as e:
+        # Log basic header info to help diagnose
+        try:
+            header = jwt.get_unverified_header(token)
+            logger.error(f"JWT Invalid: {str(e)} | Header: {header}")
+        except Exception:
+            logger.error(f"JWT Invalid: {str(e)} | Could not parse header")
+            
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
 
 

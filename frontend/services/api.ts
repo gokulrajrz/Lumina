@@ -30,7 +30,7 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
       headers['Authorization'] = `Bearer ${session.access_token}`;
     }
   } catch (error) {
-    console.warn('Failed to get auth session for API call:', error);
+    if (__DEV__) console.warn('Failed to get auth session for API call:', error);
   }
 
   return headers;
@@ -79,7 +79,7 @@ async function fetchAPI<T>(
 
       // Network error — retry if attempts remain
       if (attempt < retries) {
-        console.warn(`API request failed (attempt ${attempt + 1}), retrying...`);
+        if (__DEV__) console.warn(`API request failed (attempt ${attempt + 1}), retrying...`);
         await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
         continue;
       }
@@ -123,19 +123,6 @@ export const api = {
     return fetchAPI('/api/users/me');
   },
 
-  /**
-   * Get a user by their internal user_id.
-   */
-  async getUser(userId: string): Promise<any> {
-    return fetchAPI(`/api/users/${userId}`);
-  },
-
-  /**
-   * Get a user by their Supabase auth ID.
-   */
-  async getUserBySupabaseId(supabaseId: string): Promise<any> {
-    return fetchAPI(`/api/users/by-supabase/${supabaseId}`);
-  },
 
   // ── Daily Briefing ──
 

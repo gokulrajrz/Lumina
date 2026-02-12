@@ -40,13 +40,13 @@ export default function ChartScreen() {
   const fetchChart = useCallback(async () => {
     if (!profile?.user_id) return;
     try {
-      const user = await api.getUser(profile.user_id);
+      const user = await api.getCurrentUser();
       setProfile(user);
       if (user.birth_chart) {
         setChart(user.birth_chart);
       }
     } catch (error) {
-      console.error('Failed to fetch chart:', error);
+      if (__DEV__) console.error('Failed to fetch chart:', error);
       Alert.alert('Error', 'Could not load birth chart.');
     } finally {
       setLoading(false);

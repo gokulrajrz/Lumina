@@ -4,12 +4,13 @@
  * Step 1: Supabase auth (sign up / sign in)
  * Step 2: Birth information form → calls backend to create profile
  * 
- * The backend uses the JWT token to identify the user (supabase_id),
- * so we don't send supabase_id explicitly in the payload.
+ * DESIGN NOTES:
+ * 1. Absolutely NO stray text/whitespace allowed outside <Text> components.
+ * 2. Icons must be full React elements <Ionicons />.
  */
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Button } from '../components/ui/Button';
@@ -28,6 +29,27 @@ export default function Onboarding() {
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+
+  useEffect(() => {
+    const checkBackend = async () => {
+      if (__DEV__) console.log('[Diagnostic] Checking backend at:', process.env.EXPO_PUBLIC_BACKEND_URL);
+      try {
+        const status = await api.healthCheck();
+        if (__DEV__) console.log('[Diagnostic] Backend is online:', status);
+        setBackendStatus('online');
+      } catch (error: any) {
+        if (__DEV__) {
+          console.warn('[Diagnostic] Backend check failed:');
+          console.warn('- URL:', process.env.EXPO_PUBLIC_BACKEND_URL);
+          console.warn('- Message:', error.message);
+          console.warn('- Status:', error.status);
+        }
+        setBackendStatus('offline');
+      }
+    };
+    checkBackend();
+  }, []);
 
   // Auth
   const [email, setEmail] = useState('');
@@ -127,62 +149,42 @@ export default function Onboarding() {
     setLoading(true);
     try {
       // Ensure we have a valid session
-      console.log('[Onboarding] Checking session...');
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
       if (sessionError) {
-        console.error('[Onboarding] Session error:', sessionError);
-        throw new Error('Session expired. Please go back and sign in again.');
+        throw new Error('Session expired. Please sign in again.');
       }
 
       if (!session) {
-        console.log('[Onboarding] No session, attempting sign in...');
         const { data: signInData, error: signInError } =
           await supabase.auth.signInWithPassword({ email, password });
         if (signInError) {
-          console.error('[Onboarding] Sign-in error:', signInError);
-          throw new Error('Session expired. Please go back and sign in again.');
+          if (signInError.message.includes('Email not confirmed')) {
+            throw new Error('Please confirm your email address before continuing.');
+          }
+          throw new Error(signInError.message || 'Authentication failed. Please sign in again.');
         }
         if (!signInData.user) throw new Error('Failed to authenticate.');
       }
 
-      // Create user profile via backend API with timeout
-      console.log('[Onboarding] Creating profile via API...');
-      const timeoutMs = 15000;
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      // Create user profile via backend API
+      const profile = await api.createUser({
+        display_name: displayName,
+        email: email,
+        birth_date: birthDate,
+        birth_time: birthTime,
+        latitude: lat,
+        longitude: lon,
+        city,
+        timezone_str: 'UTC',
+      });
 
-      try {
-        const profile = await api.createUser({
-          display_name: displayName,
-          email: email,
-          birth_date: birthDate,
-          birth_time: birthTime,
-          latitude: lat,
-          longitude: lon,
-          city,
-          timezone_str: 'UTC',
-        });
-
-        clearTimeout(timeout);
-        console.log('[Onboarding] Profile created:', profile?.user_id);
-        await setProfile(profile);
-        router.replace('/(tabs)');
-      } catch (apiError: any) {
-        clearTimeout(timeout);
-        if (apiError.name === 'AbortError') {
-          throw new Error(
-            'Could not reach the server. Please check that the backend is running and your network connection.',
-          );
-        }
-        throw apiError;
-      }
+      await setProfile(profile);
+      router.replace('/(tabs)');
     } catch (error: any) {
-      console.error('[Onboarding] Setup error:', error);
-      const message =
-        error.message?.includes('Network')
-          ? 'Cannot connect to server. Make sure the backend is running and check EXPO_PUBLIC_BACKEND_URL in your .env file.'
-          : error.message || 'Something went wrong. Please try again.';
+      const message = error.message?.includes('Network')
+        ? 'Cannot connect to server. Make sure the backend is running.'
+        : error.message || 'Something went wrong. Please try again.';
       Alert.alert('Setup Error', message);
     } finally {
       setLoading(false);
@@ -194,23 +196,17 @@ export default function Onboarding() {
       <StatusBar style="light" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
+        style={styles.container}
       >
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Text style={styles.title} accessibilityRole="header">
-              ✨ Welcome to Lumina
-            </Text>
-            <Text style={styles.subtitle}>
-              Your cosmic self-discovery journey begins
-            </Text>
+            <View style={styles.iconContainer}>
+              <Ionicons name="sparkles" size={40} color="#A78BFA" />
+            </View>
+            <Text style={styles.title}>Lumina</Text>
+            <Text style={styles.subtitle}>Begin your cosmic journey</Text>
           </View>
 
-          {/* Step indicator */}
           <View style={styles.stepIndicator}>
             <View style={[styles.stepDot, step >= 1 && styles.stepDotActive]} />
             <View style={styles.stepLine} />
@@ -227,6 +223,7 @@ export default function Onboarding() {
                   onChangeText={setEmail}
                   placeholder="your@email.com"
                   keyboardType="email-address"
+                  autoCapitalize="none"
                   icon={<Ionicons name="mail-outline" size={20} color={colors.textSecondary} />}
                 />
                 <Input
@@ -241,9 +238,17 @@ export default function Onboarding() {
                   title="Continue"
                   onPress={handleSignUp}
                   loading={loading}
-                  fullWidth
+                  variant="primary"
                   style={styles.button}
                 />
+                <TouchableOpacity
+                  onPress={() => router.replace('/login')}
+                  style={styles.signInLink}
+                >
+                  <Text style={styles.signInText}>
+                    Already have an account? <Text style={styles.signInHighlight}>Sign In</Text>
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -253,65 +258,76 @@ export default function Onboarding() {
                 <Text style={styles.stepDescription}>
                   This data powers your personalized birth chart and daily cosmic insights.
                 </Text>
+
                 <Input
                   label="Display Name *"
                   value={displayName}
                   onChangeText={setDisplayName}
-                  placeholder="Your name"
+                  placeholder="The Cosmopolitan"
                   icon={<Ionicons name="person-outline" size={20} color={colors.textSecondary} />}
-                />
-                <Input
-                  label="Birth Date (YYYY-MM-DD) *"
-                  value={birthDate}
-                  onChangeText={setBirthDate}
-                  placeholder="1990-01-15"
-                  icon={<Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />}
-                />
-                <Input
-                  label="Birth Time (HH:MM, 24hr) *"
-                  value={birthTime}
-                  onChangeText={setBirthTime}
-                  placeholder="14:30"
-                  icon={<Ionicons name="time-outline" size={20} color={colors.textSecondary} />}
-                />
-                <Input
-                  label="Birth City *"
-                  value={city}
-                  onChangeText={setCity}
-                  placeholder="New York"
-                  icon={<Ionicons name="location-outline" size={20} color={colors.textSecondary} />}
                 />
 
                 <View style={styles.row}>
                   <View style={styles.halfInput}>
                     <Input
-                      label="Lat (opt)"
+                      label="Birth Date *"
+                      value={birthDate}
+                      onChangeText={setBirthDate}
+                      placeholder="YYYY-MM-DD"
+                      keyboardType="numeric"
+                      icon={<Ionicons name="calendar-outline" size={20} color={colors.textSecondary} />}
+                    />
+                  </View>
+                  <View style={styles.halfInput}>
+                    <Input
+                      label="Birth Time *"
+                      value={birthTime}
+                      onChangeText={setBirthTime}
+                      placeholder="HH:MM"
+                      keyboardType="numeric"
+                      icon={<Ionicons name="time-outline" size={20} color={colors.textSecondary} />}
+                    />
+                  </View>
+                </View>
+
+                <Input
+                  label="City of Birth *"
+                  value={city}
+                  onChangeText={setCity}
+                  placeholder="e.g. New York, London, Tokyo"
+                  icon={<Ionicons name="location-outline" size={20} color={colors.textSecondary} />}
+                />
+
+                <Text style={styles.helperText}>
+                  Coordinates help us calculate the exact positions of the stars.
+                </Text>
+
+                <View style={styles.row}>
+                  <View style={styles.halfInput}>
+                    <Input
+                      label="Latitude (Optional)"
                       value={latitude}
                       onChangeText={setLatitude}
-                      placeholder="40.71"
+                      placeholder="e.g. 40.7128"
                       keyboardType="numeric"
                     />
                   </View>
                   <View style={styles.halfInput}>
                     <Input
-                      label="Lon (opt)"
+                      label="Longitude (Optional)"
                       value={longitude}
                       onChangeText={setLongitude}
-                      placeholder="-74.00"
+                      placeholder="e.g. -74.0060"
                       keyboardType="numeric"
                     />
                   </View>
                 </View>
 
-                <Text style={styles.helperText}>
-                  💡 Optional coordinates for higher precision.
-                </Text>
-
                 <Button
-                  title="Complete Setup"
+                  title="Finish Setup"
                   onPress={handleComplete}
                   loading={loading}
-                  fullWidth
+                  variant="primary"
                   style={styles.button}
                 />
               </View>
@@ -327,24 +343,30 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
+  scrollContent: {
     padding: spacing.lg,
-    paddingTop: spacing.xxl * 1.5,
+    paddingTop: spacing.xxl,
     paddingBottom: spacing.xxl,
   },
   header: {
     alignItems: 'center',
     marginBottom: spacing.xl,
   },
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(167, 139, 250, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
   title: {
-    fontSize: typography.fontSize.xxxl,
+    fontSize: typography.fontSize.display,
     fontWeight: typography.fontWeight.bold,
     color: colors.textPrimary,
     marginBottom: spacing.xs,
     textAlign: 'center',
-    textShadowColor: 'transparent',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 0,
   },
   subtitle: {
     fontSize: typography.fontSize.base,
@@ -366,10 +388,6 @@ const styles = StyleSheet.create({
   },
   stepDotActive: {
     backgroundColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0,
-    shadowRadius: 0,
   },
   stepLine: {
     width: 40,
@@ -414,5 +432,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     fontStyle: 'italic',
     textAlign: 'center',
+  },
+  signInLink: {
+    marginTop: spacing.lg,
+    alignItems: 'center',
+  },
+  signInText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+  },
+  signInHighlight: {
+    color: '#A78BFA',
+    fontWeight: 'bold',
   },
 });

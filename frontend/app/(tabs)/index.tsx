@@ -151,7 +151,7 @@ export default function HomeScreen() {
       const data = await api.getDailyBriefing(profile.user_id, dateStr);
       setBriefing(data);
     } catch (err) {
-      console.error('Failed to fetch daily briefing:', err);
+      if (__DEV__) console.error('Failed to fetch daily briefing:', err);
       setError('Could not load your cosmic briefing. Please try again.');
     } finally {
       setLoading(false);

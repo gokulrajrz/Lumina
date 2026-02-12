@@ -137,7 +137,7 @@ export default function JournalScreen() {
       setEditingEntry(null);
       setWriting(false);
     } catch (error) {
-      console.error('Failed to save entry:', error);
+      if (__DEV__) console.error('Failed to save entry:', error);
       Alert.alert('Error', 'Could not save your entry. Please try again.');
     } finally {
       setSubmitting(false);

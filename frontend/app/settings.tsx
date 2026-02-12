@@ -46,9 +46,7 @@ export default function Settings() {
                     onPress: async () => {
                         try {
                             await supabase.auth.signOut();
-                            await clearProfile();
-                            chatStore.newConversation();
-                            router.replace('/onboarding');
+                            // RootLayout handles the router.replace('/login') on SIGNED_OUT event
                         } catch (error) {
                             Alert.alert('Error', 'Failed to sign out. Please try again.');
                         }

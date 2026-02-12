@@ -1,6 +1,5 @@
 """
-Database service using Supabase client directly.
-Clean, async-compatible interface — no MongoDB wrapper.
+Database service — Clean, async-compatible interface for Supabase (PostgreSQL).
 """
 
 import logging

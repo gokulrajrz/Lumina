@@ -57,7 +57,7 @@ export const useChatStore = create<ChatState>()(
             isLoading: false,
           });
         } catch (error) {
-          console.error('Failed to load chat history:', error);
+          if (__DEV__) console.error('Failed to load chat history:', error);
           set({ isLoading: false });
         }
       },
